@@ -395,7 +395,8 @@ class HTMLParser {
   }
 
   void adjustForeignAttributes(Map token) {
-    // !!! what is this
+    // TODO(jmesserly): I don't like mixing non-string objects with strings in
+    // the Node.attributes Map. Is there another solution?
     final replacements = const {
       "xlink:actuate": const AttributeName("xlink", "actuate",
             Namespaces.xlink),
