@@ -246,8 +246,8 @@ class Element extends Node {
     var result = '<$name';
     if (attributes.length > 0) {
       attributes.forEach((key, v) {
-        value = _escape(value, {'"': "&quot;"});
-        result = '$result $key="v"';
+        v = _escape(v, {'"': "&quot;"});
+        result = '$result $key="$v"';
       });
     }
     if (childNodes.length > 0) {
@@ -266,9 +266,9 @@ class Element extends Node {
     var result = '&lt;<code class="markup element-name">$name</code>';
     if (attributes.length > 0) {
       attributes.forEach((key, v) {
-        value = _escape(value, {'"': "&quot;"});
+        v = _escape(v, {'"': "&quot;"});
         result = '$result <code class="markup attribute-name">$key</code>'
-            '=<code class="markup attribute-value">"v"</code>';
+            '=<code class="markup attribute-value">"$v"</code>';
       });
     }
     if (childNodes.length > 0) {
@@ -289,12 +289,12 @@ class Element extends Node {
       var keys = new List.from(attributes.getKeys());
       keys.sort((x, y) => x.compareTo(y));
       for (var key in keys) {
-        var value = attributes[key];
+        var v = attributes[key];
         if (key is AttributeName) {
           AttributeName attr = key;
           key = "${attr.prefix} ${attr.name}";
         }
-        tree = '${tree}\n|${_spaces(indent)}$key="$value"';
+        tree = '${tree}\n|${_spaces(indent)}$key="$v"';
       }
     }
     for (var child in childNodes) {
