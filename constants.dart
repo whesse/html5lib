@@ -2,13 +2,35 @@
 
 #import('utils.dart');
 
-// TODO(jmesserly): immutable data structures for Set and lists where we
-// constructed from non-const data.
+// TODO(jmesserly): fix up the const lists. For the bigger ones, we need faster
+// lookup than linear search "indexOf". In the Python code they were frozensets.
 
 final Object EOF = null;
 
 
-final Map<String, String> Errors = const {
+class ReparseException implements Exception {
+  final String message;
+  ReparseException(this.message);
+  String toString() => "ReparseException: $message";
+}
+
+class UserWarning implements Exception {
+  final String message;
+  UserWarning(this.message);
+  String toString() => "UserWarning: $message";
+}
+
+class DataLossWarning extends UserWarning {
+  DataLossWarning(String message) : super(message);
+  String toString() => "DataLossWarning: $message";
+}
+
+/**
+ * These are error messages emitted by [HTMLParser]. The values use Python style
+ * string formatting, as implemented by [formatStr]. That function only supports
+ * the subset of format functionality used here.
+ */
+final Map<String, String> errorMessages = const {
   "null-character":
      "Null character in input stream, replaced with U+FFFD.",
   "invalid-codepoint":
@@ -288,152 +310,162 @@ final Map<String, String> Errors = const {
       "Undefined error (this sucks and should be fixed",
 };
 
-final _html_ns = "http://www.w3.org/1999/xhtml";
-final _mathml_ns = "http://www.w3.org/1998/Math/MathML";
-final _svg_ns = "http://www.w3.org/2000/svg";
-final Map<String, String> namespaces = const {
-  "html": _html_ns,
-  "mathml": _mathml_ns,
-  "svg": _svg_ns,
-  "xlink": "http://www.w3.org/1999/xlink",
-  "xml": "http://www.w3.org/XML/1998/namespace",
-  "xmlns": "http://www.w3.org/2000/xmlns/"
-};
+class Namespaces {
+  static const html = "http://www.w3.org/1999/xhtml";
+  static const mathml = "http://www.w3.org/1998/Math/MathML";
+  static const svg = "http://www.w3.org/2000/svg";
+  static const xlink = "http://www.w3.org/1999/xlink";
+  static const xml = "http://www.w3.org/XML/1998/namespace";
+  static const xmlns = "http://www.w3.org/2000/xmlns/";
+  Namespaces._();
+
+  static String getPrefix(String url) {
+    switch (url) {
+      case html: return 'html';
+      case mathml: return 'math';
+      case svg: return 'svg';
+      case xlink: return 'xlink';
+      case xml: return 'xml';
+      case xmlns: return 'xmlns';
+      default: throw new IllegalArgumentException(url);
+    }
+  }
+}
 
 final scopingElements = const [
-  const Pair(_html_ns, "applet"),
-  const Pair(_html_ns, "caption"),
-  const Pair(_html_ns, "html"),
-  const Pair(_html_ns, "marquee"),
-  const Pair(_html_ns, "object"),
-  const Pair(_html_ns, "table"),
-  const Pair(_html_ns, "td"),
-  const Pair(_html_ns, "th"),
-  const Pair(_mathml_ns, "mi"),
-  const Pair(_mathml_ns, "mo"),
-  const Pair(_mathml_ns, "mn"),
-  const Pair(_mathml_ns, "ms"),
-  const Pair(_mathml_ns, "mtext"),
-  const Pair(_mathml_ns, "annotation-xml"),
-  const Pair(_svg_ns, "foreignObject"),
-  const Pair(_svg_ns, "desc"),
-  const Pair(_svg_ns, "title")
+  const Pair(Namespaces.html, "applet"),
+  const Pair(Namespaces.html, "caption"),
+  const Pair(Namespaces.html, "html"),
+  const Pair(Namespaces.html, "marquee"),
+  const Pair(Namespaces.html, "object"),
+  const Pair(Namespaces.html, "table"),
+  const Pair(Namespaces.html, "td"),
+  const Pair(Namespaces.html, "th"),
+  const Pair(Namespaces.mathml, "mi"),
+  const Pair(Namespaces.mathml, "mo"),
+  const Pair(Namespaces.mathml, "mn"),
+  const Pair(Namespaces.mathml, "ms"),
+  const Pair(Namespaces.mathml, "mtext"),
+  const Pair(Namespaces.mathml, "annotation-xml"),
+  const Pair(Namespaces.svg, "foreignObject"),
+  const Pair(Namespaces.svg, "desc"),
+  const Pair(Namespaces.svg, "title")
 ];
 
 
 final formattingElements = const [
-  const Pair(_html_ns, "a"),
-  const Pair(_html_ns, "b"),
-  const Pair(_html_ns, "big"),
-  const Pair(_html_ns, "code"),
-  const Pair(_html_ns, "em"),
-  const Pair(_html_ns, "font"),
-  const Pair(_html_ns, "i"),
-  const Pair(_html_ns, "nobr"),
-  const Pair(_html_ns, "s"),
-  const Pair(_html_ns, "small"),
-  const Pair(_html_ns, "strike"),
-  const Pair(_html_ns, "strong"),
-  const Pair(_html_ns, "tt"),
-  const Pair(_html_ns, "")
+  const Pair(Namespaces.html, "a"),
+  const Pair(Namespaces.html, "b"),
+  const Pair(Namespaces.html, "big"),
+  const Pair(Namespaces.html, "code"),
+  const Pair(Namespaces.html, "em"),
+  const Pair(Namespaces.html, "font"),
+  const Pair(Namespaces.html, "i"),
+  const Pair(Namespaces.html, "nobr"),
+  const Pair(Namespaces.html, "s"),
+  const Pair(Namespaces.html, "small"),
+  const Pair(Namespaces.html, "strike"),
+  const Pair(Namespaces.html, "strong"),
+  const Pair(Namespaces.html, "tt"),
+  const Pair(Namespaces.html, "")
 ];
 
 final specialElements = const [
-  const Pair(_html_ns, "address"),
-  const Pair(_html_ns, "applet"),
-  const Pair(_html_ns, "area"),
-  const Pair(_html_ns, "article"),
-  const Pair(_html_ns, "aside"),
-  const Pair(_html_ns, "base"),
-  const Pair(_html_ns, "basefont"),
-  const Pair(_html_ns, "bgsound"),
-  const Pair(_html_ns, "blockquote"),
-  const Pair(_html_ns, "body"),
-  const Pair(_html_ns, "br"),
-  const Pair(_html_ns, "button"),
-  const Pair(_html_ns, "caption"),
-  const Pair(_html_ns, "center"),
-  const Pair(_html_ns, "col"),
-  const Pair(_html_ns, "colgroup"),
-  const Pair(_html_ns, "command"),
-  const Pair(_html_ns, "dd"),
-  const Pair(_html_ns, "details"),
-  const Pair(_html_ns, "dir"),
-  const Pair(_html_ns, "div"),
-  const Pair(_html_ns, "dl"),
-  const Pair(_html_ns, "dt"),
-  const Pair(_html_ns, "embed"),
-  const Pair(_html_ns, "fieldset"),
-  const Pair(_html_ns, "figure"),
-  const Pair(_html_ns, "footer"),
-  const Pair(_html_ns, "form"),
-  const Pair(_html_ns, "frame"),
-  const Pair(_html_ns, "frameset"),
-  const Pair(_html_ns, "h1"),
-  const Pair(_html_ns, "h2"),
-  const Pair(_html_ns, "h3"),
-  const Pair(_html_ns, "h4"),
-  const Pair(_html_ns, "h5"),
-  const Pair(_html_ns, "h6"),
-  const Pair(_html_ns, "head"),
-  const Pair(_html_ns, "header"),
-  const Pair(_html_ns, "hr"),
-  const Pair(_html_ns, "html"),
-  const Pair(_html_ns, "iframe"),
+  const Pair(Namespaces.html, "address"),
+  const Pair(Namespaces.html, "applet"),
+  const Pair(Namespaces.html, "area"),
+  const Pair(Namespaces.html, "article"),
+  const Pair(Namespaces.html, "aside"),
+  const Pair(Namespaces.html, "base"),
+  const Pair(Namespaces.html, "basefont"),
+  const Pair(Namespaces.html, "bgsound"),
+  const Pair(Namespaces.html, "blockquote"),
+  const Pair(Namespaces.html, "body"),
+  const Pair(Namespaces.html, "br"),
+  const Pair(Namespaces.html, "button"),
+  const Pair(Namespaces.html, "caption"),
+  const Pair(Namespaces.html, "center"),
+  const Pair(Namespaces.html, "col"),
+  const Pair(Namespaces.html, "colgroup"),
+  const Pair(Namespaces.html, "command"),
+  const Pair(Namespaces.html, "dd"),
+  const Pair(Namespaces.html, "details"),
+  const Pair(Namespaces.html, "dir"),
+  const Pair(Namespaces.html, "div"),
+  const Pair(Namespaces.html, "dl"),
+  const Pair(Namespaces.html, "dt"),
+  const Pair(Namespaces.html, "embed"),
+  const Pair(Namespaces.html, "fieldset"),
+  const Pair(Namespaces.html, "figure"),
+  const Pair(Namespaces.html, "footer"),
+  const Pair(Namespaces.html, "form"),
+  const Pair(Namespaces.html, "frame"),
+  const Pair(Namespaces.html, "frameset"),
+  const Pair(Namespaces.html, "h1"),
+  const Pair(Namespaces.html, "h2"),
+  const Pair(Namespaces.html, "h3"),
+  const Pair(Namespaces.html, "h4"),
+  const Pair(Namespaces.html, "h5"),
+  const Pair(Namespaces.html, "h6"),
+  const Pair(Namespaces.html, "head"),
+  const Pair(Namespaces.html, "header"),
+  const Pair(Namespaces.html, "hr"),
+  const Pair(Namespaces.html, "html"),
+  const Pair(Namespaces.html, "iframe"),
   // Note that image is commented out in the spec as "this isn't an
   // element that can end up on the stack, so it doesn't matter,"
-  const Pair(_html_ns, "image"),
-  const Pair(_html_ns, "img"),
-  const Pair(_html_ns, "input"),
-  const Pair(_html_ns, "isindex"),
-  const Pair(_html_ns, "li"),
-  const Pair(_html_ns, "link"),
-  const Pair(_html_ns, "listing"),
-  const Pair(_html_ns, "marquee"),
-  const Pair(_html_ns, "men"),
-  const Pair(_html_ns, "meta"),
-  const Pair(_html_ns, "nav"),
-  const Pair(_html_ns, "noembed"),
-  const Pair(_html_ns, "noframes"),
-  const Pair(_html_ns, "noscript"),
-  const Pair(_html_ns, "object"),
-  const Pair(_html_ns, "ol"),
-  const Pair(_html_ns, "p"),
-  const Pair(_html_ns, "param"),
-  const Pair(_html_ns, "plaintext"),
-  const Pair(_html_ns, "pre"),
-  const Pair(_html_ns, "script"),
-  const Pair(_html_ns, "section"),
-  const Pair(_html_ns, "select"),
-  const Pair(_html_ns, "style"),
-  const Pair(_html_ns, "table"),
-  const Pair(_html_ns, "tbody"),
-  const Pair(_html_ns, "td"),
-  const Pair(_html_ns, "textarea"),
-  const Pair(_html_ns, "tfoot"),
-  const Pair(_html_ns, "th"),
-  const Pair(_html_ns, "thead"),
-  const Pair(_html_ns, "title"),
-  const Pair(_html_ns, "tr"),
-  const Pair(_html_ns, "ul"),
-  const Pair(_html_ns, "wbr"),
-  const Pair(_html_ns, "xmp"),
-  const Pair(_svg_ns, "foreignObject")
+  const Pair(Namespaces.html, "image"),
+  const Pair(Namespaces.html, "img"),
+  const Pair(Namespaces.html, "input"),
+  const Pair(Namespaces.html, "isindex"),
+  const Pair(Namespaces.html, "li"),
+  const Pair(Namespaces.html, "link"),
+  const Pair(Namespaces.html, "listing"),
+  const Pair(Namespaces.html, "marquee"),
+  const Pair(Namespaces.html, "men"),
+  const Pair(Namespaces.html, "meta"),
+  const Pair(Namespaces.html, "nav"),
+  const Pair(Namespaces.html, "noembed"),
+  const Pair(Namespaces.html, "noframes"),
+  const Pair(Namespaces.html, "noscript"),
+  const Pair(Namespaces.html, "object"),
+  const Pair(Namespaces.html, "ol"),
+  const Pair(Namespaces.html, "p"),
+  const Pair(Namespaces.html, "param"),
+  const Pair(Namespaces.html, "plaintext"),
+  const Pair(Namespaces.html, "pre"),
+  const Pair(Namespaces.html, "script"),
+  const Pair(Namespaces.html, "section"),
+  const Pair(Namespaces.html, "select"),
+  const Pair(Namespaces.html, "style"),
+  const Pair(Namespaces.html, "table"),
+  const Pair(Namespaces.html, "tbody"),
+  const Pair(Namespaces.html, "td"),
+  const Pair(Namespaces.html, "textarea"),
+  const Pair(Namespaces.html, "tfoot"),
+  const Pair(Namespaces.html, "th"),
+  const Pair(Namespaces.html, "thead"),
+  const Pair(Namespaces.html, "title"),
+  const Pair(Namespaces.html, "tr"),
+  const Pair(Namespaces.html, "ul"),
+  const Pair(Namespaces.html, "wbr"),
+  const Pair(Namespaces.html, "xmp"),
+  const Pair(Namespaces.svg, "foreignObject")
 ];
 
 final htmlIntegrationPointElements = const [
-  const Pair(_mathml_ns, "annotaion-xml"),
-  const Pair(_svg_ns, "foreignObject"),
-  const Pair(_svg_ns, "desc"),
-  const Pair(_svg_ns, "title")
+  const Pair(Namespaces.mathml, "annotaion-xml"),
+  const Pair(Namespaces.svg, "foreignObject"),
+  const Pair(Namespaces.svg, "desc"),
+  const Pair(Namespaces.svg, "title")
 ];
 
 final mathmlTextIntegrationPointElements = const [
-  const Pair(_mathml_ns, "mi"),
-  const Pair(_mathml_ns, "mo"),
-  const Pair(_mathml_ns, "mn"),
-  const Pair(_mathml_ns, "ms"),
-  const Pair(_mathml_ns, "mtext")
+  const Pair(Namespaces.mathml, "mi"),
+  const Pair(Namespaces.mathml, "mo"),
+  const Pair(Namespaces.mathml, "mn"),
+  const Pair(Namespaces.mathml, "ms"),
+  const Pair(Namespaces.mathml, "mtext")
 ];
 
 final spaceCharacters = " \n\r\t\u000C";
@@ -443,8 +475,11 @@ final int RETURN = 13;
 
 bool isWhitespace(String char) {
   if (char == null) return false;
-  int cc = char.charCodeAt(0);
-  switch (cc) {
+  return isWhitespaceCC(char.charCodeAt(0));
+}
+
+bool isWhitespaceCC(int charCode) {
+  switch (charCode) {
     case 9:  // '\t'
     case NEWLINE: // '\n'
     case 12: // '\f'
@@ -502,6 +537,7 @@ bool isHexDigit(String char) {
 // Note: based on the original Python code, I assume we only want to convert
 // ASCII chars to.toLowerCase() case, unlike Dart's toLowerCase function.
 String asciiUpper2Lower(String text) {
+  if (text == null) return null;
   var result = new List<int>(text.length);
   for (int i = 0; i < text.length; i++) {
     var c = text.charCodeAt(i);
@@ -3119,38 +3155,38 @@ final Map<String, String> encodings = const {
   'windows1257': 'cp1257',
   'windows1258': 'cp1258',
   'windows936': 'gbk',
-  'x-x-big5': 'big5'};
+  'x-x-big5': 'big5'
+};
 
-final _StartTagType = 3, _EndTagType = 4, _EmptyTagType = 5;
+
+final DoctypeToken = 0;
+final CharactersToken = 1;
+final SpaceCharactersToken = 2;
+final StartTagToken = 3;
+final EndTagToken = 4;
+final EmptyTagToken = 5;
+final CommentToken = 6;
+final ParseErrorToken = 8;
 
 final tokenTypes = const {
-  "Doctype":0,
-  "Characters":1,
-  "SpaceCharacters":2,
-  "StartTag":_StartTagType,
-  "EndTag":_EndTagType,
-  "EmptyTag":_EmptyTagType,
-  "Comment":6,
-  "ParseError":7
+  "Doctype": DoctypeToken,
+  "Characters": CharactersToken,
+  "SpaceCharacters": SpaceCharactersToken,
+  "StartTag": StartTagToken,
+  "EndTag": EndTagToken,
+  "EmptyTag": EmptyTagToken,
+  "Comment": CommentToken,
+  "ParseError": ParseErrorToken,
 };
+
 
 bool isTagTokenType(int tagType) {
   switch (tagType) {
-    case _StartTagType:
-    case _EndTagType:
-    case _EmptyTagType:
+    case StartTagToken:
+    case EndTagToken:
+    case EmptyTagToken:
       return true;
   }
   return false;
-}
-
-var _prefixes;
-Map<String, String> get prefixes() {
-  if (_prefixes != null) {
-    _prefixes = {};
-    namespaces.forEach((k, v) { _prefixes[v] = k; });
-    _prefixes["http://www.w3.org/1998/Math/MathML"] = "math";
-  }
-  return _prefixes;
 }
 

@@ -10,6 +10,9 @@
 #
 # If you already have a dart_lang checkout, you can build the SDK directly.
 
+# bail on error
+set -e
+
 DART=$DART_SDK/bin/dart
 # TODO(sigmund): generalize to run browser tests too
 for test in tests/*_test.dart; do

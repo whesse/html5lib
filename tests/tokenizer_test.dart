@@ -7,12 +7,9 @@
 #import('package:unittest/unittest.dart');
 #import('../tokenizer.dart');
 #import('../constants.dart', prefix: 'constants');
+#import('../utils.dart');
 #import('../codecs.dart');
 #import('support.dart');
-
-main() {
-  testTokenizer();
-}
 
 /**
  * This is like [JSON.parse], but it fixes unicode surrogate pairs in the JSON.
@@ -67,8 +64,7 @@ class TokenizerTestParser {
 
     // Note: we can't get a closure of the state method. However, we can
     // create a new closure to invoke it via mirrors.
-    var mirrors = currentMirrorSystem();
-    var mtok = mirrors.mirrorOf(tokenizer);
+    var mtok = reflect(tokenizer);
     // TODO(jmesserly): mirrors are causing us to lose stack traces?
     // If you hit a bug and aren't getting a stack trace, consider adding
     // debug code like this to avoid the mirror invocation:
@@ -86,21 +82,10 @@ class TokenizerTestParser {
     constants.tokenTypes.forEach((k, v) => types[v] = k);
     while (tokenizer.hasNext()) {
       var token = tokenizer.next();
-      mirrors.mirrorOf(this).invoke(
-          'process${types[token["type"]]}', [mirrors.mirrorOf(token)]);
+      reflect(this).invoke('process${types[token["type"]]}', [reflect(token)]);
     }
 
     return outputTokens;
-  }
-
-  /** Makes a dictionary, where the first key wins. */
-  Map _makeDict(List<List> items) {
-    var result = new Map();
-    for (var item in items) {
-      expect(item.length, equals(2));
-      result.putIfAbsent(item[0], () => item[1]);
-    }
-    return result;
   }
 
   void processDoctype(Map token) {
@@ -110,14 +95,14 @@ class TokenizerTestParser {
 
   void processStartTag(Map token) {
     outputTokens.add(["StartTag", token["name"],
-        _makeDict(token["data"]), token["selfClosing"]]);
+        makeDict(token["data"]), token["selfClosing"]]);
   }
 
   void processEmptyTag(Map token) {
     if (constants.voidElements.indexOf(token["name"]) >= 0) {
       outputTokens.add("ParseError");
     }
-    outputTokens.add(["StartTag", token["name"], _makeDict(token["data"])]);
+    outputTokens.add(["StartTag", token["name"], makeDict(token["data"])]);
   }
 
   void processEndTag(Map token) {
@@ -296,11 +281,11 @@ String camelCase(String s) {
   return result.toString();
 }
 
-void testTokenizer() {
+void main() {
   getDataFiles('tokenizer', (p) => p.endsWith('.test')).then((files) {
     for (var path in files) {
 
-      var text = new File.fromPath(new Path(path)).readAsTextSync();
+      var text = new File(path).readAsTextSync();
       var tests = jsonParseUnicode(text);
       var testName = new Path.fromNative(path).filename.replaceAll(".test","");
       var testList = tests['tests'];
