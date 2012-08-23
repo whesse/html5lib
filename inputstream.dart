@@ -154,7 +154,7 @@ class HTMLInputStream {
       reset();
       charEncodingName = newEncoding;
       charEncodingCertain = true;
-      throw new Exception(
+      throw new ReparseException(
           "Encoding changed from $charEncodingName to $newEncoding");
     }
   }

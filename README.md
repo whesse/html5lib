@@ -8,15 +8,15 @@ Dart you can use it safely from a script or server side app.
 Eventually the parse tree API will be compatible with [dart:html][d_html], so
 the same code will work on the client or the server.
 
-This library is not finished. These files from the [html5lib directory][files]
-still need to be ported:
+Right now the tokenizer, html5parser, and simpletree are working.
 
-* `html5parser.py`
+These files from the [html5lib directory][files] still need to be ported:
+
 * `ihatexml.py`
 * `sanitizer.py`
 * `filters/*`
 * `serializer/*`
-* `treebuilders/*`
+* most of `treebuilders/*`
 * `treewalkers/*`
 * most of `tests`
 
