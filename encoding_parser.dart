@@ -18,7 +18,7 @@ class EncodingBytes implements Iterable<String> {
   EncodingBytes(String bytes) : _bytes = bytes, _position = -1;
 
   Iterator<String> iterator() => _bytes.splitChars().iterator();
-  int get length() => _bytes.length;
+  int get length => _bytes.length;
 
   String next() {
     var p = _position = _position + 1;
@@ -48,7 +48,7 @@ class EncodingBytes implements Iterable<String> {
     _position = value;
   }
 
-  int get position() {
+  int get position {
     if (_position >= length) {
       throw const NoMoreElementsException();
     }
@@ -59,7 +59,7 @@ class EncodingBytes implements Iterable<String> {
     }
   }
 
-  String get currentByte() => _bytes[position];
+  String get currentByte => _bytes[position];
 
   /** Skip past a list of characters. Defaults to skipping [isWhitespace]. */
   String skip([CharPreciate skipChars]) {

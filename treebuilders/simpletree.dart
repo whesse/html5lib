@@ -138,7 +138,7 @@ class Node extends base.Node implements Iterable<Node> {
   /** Return true if the node has children or text. */
   bool hasContent() => childNodes.length > 0;
 
-  Pair<String, String> get nameTuple() {
+  Pair<String, String> get nameTuple {
     var ns = namespace != null ? namespace : Namespaces.html;
     return new Pair(ns, name);
   }

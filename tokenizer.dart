@@ -9,7 +9,7 @@
 // Group entities by their first character, for faster lookups
 
 Map<String, List<String>> _entitiesByFirstChar;
-Map<String, List<String>> get entitiesByFirstChar() {
+Map<String, List<String>> get entitiesByFirstChar {
   if (_entitiesByFirstChar == null) {
     _entitiesByFirstChar = {};
     for (var k in entities.getKeys()) {
@@ -62,7 +62,7 @@ class HTMLTokenizer implements Iterator<Map> {
     state = dataState;
   }
 
-  get lastData() => currentToken["data"].last();
+  get lastData => currentToken["data"].last();
 
   bool hasNext() {
     if (stream.errors.length > 0) return true;

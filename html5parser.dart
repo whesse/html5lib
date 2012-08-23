@@ -3232,7 +3232,7 @@ class ParseError implements Exception {
 
   ParseError(this.errorCode, this.line, this.column, this.data);
 
-  String get message() => formatStr(errorMessages[errorCode], data);
+  String get message => formatStr(errorMessages[errorCode], data);
 
   String toString() => "ParseError at line $line column $column: $message";
 }
