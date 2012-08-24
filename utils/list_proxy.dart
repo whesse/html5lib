@@ -22,7 +22,7 @@ class ListProxy<T> implements List<T> {
 
   // Implement every method from List ...
   Iterator<T> iterator() => _list.iterator();
-  int get length() => _list.length;
+  int get length => _list.length;
   T operator [](int index) => _list[index];
   int indexOf(T element, [int start = 0]) => _list.indexOf(element, start);
   int lastIndexOf(T element, [int start]) => _list.lastIndexOf(element, start);

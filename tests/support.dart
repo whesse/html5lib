@@ -5,7 +5,7 @@
 typedef TreeBuilder TreeBuilderFactory(bool namespaceHTMLElements);
 
 Map _treeTypes;
-Map<String, TreeBuilderFactory> get treeTypes() {
+Map<String, TreeBuilderFactory> get treeTypes {
   if (_treeTypes == null) {
     // TODO(jmesserly): add DOM here once it's implemented
     _treeTypes = { "simpletree": (useNs) => new TreeBuilder(useNs) };
@@ -51,7 +51,7 @@ Function convert(int stripChars) {
   return convertData;
 }
 
-Function get convertExpected() => convert(2);
+Function get convertExpected => convert(2);
 
 class TestData implements Iterable<Map> {
   final List<String> _lines;

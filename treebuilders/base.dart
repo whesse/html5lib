@@ -64,13 +64,13 @@ class Node {
    */
   abstract bool hasContent();
 
-  String get namespace() => null;
+  String get namespace => null;
 
-  Pair get nameTuple() => null;
+  Pair get nameTuple => null;
 
   // TODO(jmesserly): do we need this here?
   /** The value of the current node (applies to text nodes and comments). */
-  String get value() => null;
+  String get value => null;
 
   String toString() {
     if (attributes.length == 0) {

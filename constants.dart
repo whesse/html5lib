@@ -2884,7 +2884,7 @@ final Map<String, String> entities = const {
 };
 
 Map<int, String> _replacementCharacters;
-Map<int, String> get replacementCharacters() {
+Map<int, String> get replacementCharacters {
   if (_replacementCharacters == null) {
     // TODO(jmesserly): fix this when Dart has literal maps with int keys.
     var r = new Map<int, String>();
