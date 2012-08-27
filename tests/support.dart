@@ -53,12 +53,20 @@ Function convert(int stripChars) {
 
 Function get convertExpected => convert(2);
 
+// TODO(jmesserly): make this class simpler. There's unnecessary
+// inconsistency between how we print the tree for tests, and the expected
+// format (see convert/convertExpected above).
+// Also we should probably split the file on empty lines to find the test cases,
+// rather than parsing line by line and looking for a leading #.
+// Lastly, the "printTree" function for tests should be split out of the tree
+// nodes themselves.
 class TestData implements Iterable<Map> {
-  final List<String> _lines;
+  final String _text;
   final String newTestHeading;
 
   TestData(String filename, [this.newTestHeading = "data"])
-      : _lines = new File(filename).readAsLinesSync();
+      // Note: can't use readAsLinesSync here because it splits on \r
+      : _text = new File(filename).readAsTextSync();
 
   // Note: in Python this was a generator, but since we can't do that in Dart,
   // it's easier to convert it into an upfront computation.
@@ -68,7 +76,13 @@ class TestData implements Iterable<Map> {
     var data = {};
     var key = null;
     var result = <Map>[];
-    for (var line in _lines) {
+    var lines = _text.split('\n');
+    int numLines = lines.length;
+    // Remove trailing newline to match Python
+    if (lines.last() == '') {
+      lines.removeLast();
+    }
+    for (var line in lines) {
       var heading = sectionHeading(line);
       if (heading != null) {
         if (data.length > 0 && heading == newTestHeading) {
