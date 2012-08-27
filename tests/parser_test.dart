@@ -67,10 +67,8 @@ void runParserTest(String groupName, String innerHTML, String input,
         "\n\nException:\n$e\n\nStack trace:\n$stack");
   }
 
-  var beforeConvertOutput = p.tree.testSerializer(document);
-  var output = convertTreeDump(beforeConvertOutput);
+  var output = convertTreeDump(p.tree.testSerializer(document));
 
-  var beforeConvertExpected = expected;
   expected = convertExpected(expected);
   if (namespaceHTMLElements) {
     expected = namespaceHtml(expected);
