@@ -1,4 +1,6 @@
+/** Support code for the tests in this directory. */
 #library('support');
+
 #import('dart:io');
 #import('../treebuilders/simpletree.dart');
 

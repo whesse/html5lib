@@ -1,7 +1,12 @@
+/**
+ * A simple tree API that results from parsing html. Intended to be compatible
+ * with dart:html, but right now it resembles the classic JS DOM.
+ */
 #library('simpletree');
+
 #import('base.dart', prefix: 'base');
-#import('../utils.dart');
-#import('../constants.dart');
+#import('../lib/constants.dart');
+#import('../lib/utils.dart');
 
 final Marker = base.Marker;
 

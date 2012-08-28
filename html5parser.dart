@@ -3,10 +3,10 @@
 #import('dart:math');
 #import('package:logging/logging.dart');
 #import('treebuilders/simpletree.dart');
-#import('encoding_parser.dart');
+#import('lib/constants.dart');
+#import('lib/encoding_parser.dart');
+#import('lib/utils.dart');
 #import('tokenizer.dart');
-#import('utils.dart');
-#import('constants.dart');
 
 // TODO(jmesserly): these APIs, as well as the HTMLParser contructor and
 // HTMLParser.parse and parseFragment were changed a bit to avoid passing a

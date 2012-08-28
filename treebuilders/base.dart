@@ -1,9 +1,9 @@
 /** Internals to the tree builders. */
 #library('base');
 
-#import('../constants.dart');
-#import('../utils.dart');
-#import('../utils/list_proxy.dart');
+#import('../lib/constants.dart');
+#import('../lib/list_proxy.dart');
+#import('../lib/utils.dart');
 
 // The scope markers are inserted when entering object elements,
 // marquees, table cells, and table captions, and are used to prevent formatting

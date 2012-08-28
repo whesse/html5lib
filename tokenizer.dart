@@ -1,9 +1,9 @@
 #library('tokenizer');
 
 #import('dart:math');
-#import('constants.dart');
-#import('inputstream.dart');
-#import('utils.dart');
+#import('lib/constants.dart');
+#import('lib/inputstream.dart');
+#import('lib/utils.dart');
 #import('html5parser.dart', prefix: 'html5parser');
 
 // Group entities by their first character, for faster lookups
