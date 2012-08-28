@@ -210,7 +210,7 @@ class HTMLParser {
         element.namespace == Namespaces.mathml) {
       var enc = element.attributes["encoding"];
       if (enc != null) enc = asciiUpper2Lower(enc);
-      return enc != null && (enc == "text/html" || enc == "application/xhtml+xml");
+      return enc == "text/html" || enc == "application/xhtml+xml";
     } else {
       return htmlIntegrationPointElements.indexOf(
           new Pair(element.namespace, element.name)) >= 0;
@@ -226,16 +226,33 @@ class HTMLParser {
     if (tree.openElements.length == 0) return false;
 
     var node = tree.openElements.last();
+    if (node.namespace == tree.defaultNamespace) return false;
 
-    return !(node.namespace == tree.defaultNamespace ||
-            (isMathMLTextIntegrationPoint(node) &&
-             (type == StartTagToken &&
-              token["name"] != "mglyph" && token["name"] != "malignmark") ||
-             (type == CharactersToken || type == SpaceCharactersToken)) ||
-            (node.namespace == Namespaces.mathml &&
-             node.name == "annotation-xml" && token["name"] == "svg") ||
-            (isHTMLIntegrationPoint(node) && (type == StartTagToken ||
-             type == CharactersToken || type == SpaceCharactersToken)));
+    if (isMathMLTextIntegrationPoint(node)) {
+      if (type == StartTagToken &&
+          token["name"] != "mglyph" &&
+          token["name"] != "malignmark")  {
+        return false;
+      }
+      if (type == CharactersToken || type == SpaceCharactersToken) {
+        return false;
+      }
+    }
+
+    if (node.name == "annotation-xml" && type == StartTagToken &&
+        token["name"] == "svg") {
+      return false;
+    }
+
+    if (isHTMLIntegrationPoint(node)) {
+      if (type == StartTagToken ||
+          type == CharactersToken ||
+          type == SpaceCharactersToken) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   void mainLoop() {
