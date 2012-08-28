@@ -67,7 +67,7 @@ class TestData implements Iterable<Map> {
   Iterator<Map> iterator() => _getData().iterator();
 
   List<Map> _getData() {
-    var data = {};
+    var data = <String, String>{};
     var key = null;
     var result = <Map>[];
     for (var line in _lines) {
@@ -77,7 +77,7 @@ class TestData implements Iterable<Map> {
           // Remove trailing newline
           data[key] = data[key].substring(0, data[key].length - 1);
           result.add(normaliseOutput(data));
-          data = {};
+          data = <String, String>{};
         }
         key = heading;
         data[key] = "";

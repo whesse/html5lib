@@ -74,17 +74,10 @@ String _spaces(int indent) {
 }
 
 /** Really basic implementation of a DOM-core like thing. */
-class Node extends base.Node implements Iterable<Node> {
+class Node extends base.Node<Node> {
   static const int type = -1;
 
   Node(name) : super(name);
-
-  // TODO(jmesserly): some bug is preventing this from working.
-  // List<Node> get childNodes() => super.childNodes;
-
-  /** Iterates over children recursively, via preorder traversal. */
-  base.PreorderNodeIterator<Node> iterator() =>
-      new base.PreorderNodeIterator(this);
 
   // TODO(jmesserly): fix the efficiency of the string methods. They do tons of
   // string concat.

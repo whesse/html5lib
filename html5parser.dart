@@ -575,7 +575,7 @@ class InitialPhase extends Phase {
 
   Map processDoctype(token) {
     var name = token["name"];
-    var publicId = token["publicId"];
+    String publicId = token["publicId"];
     var systemId = token["systemId"];
     var correct = token["correct"];
 
@@ -1715,7 +1715,7 @@ class InBodyPhase extends Phase {
       // Step 2
       // Start of the adoption agency algorithm proper
       var afeIndex = tree.openElements.indexOf(formattingElement);
-      var furthestBlock = null;
+      Node furthestBlock = null;
       for (var element in slice(tree.openElements, afeIndex)) {
         if (specialElements.indexOf(element.nameTuple) >= 0) {
           furthestBlock = element;
@@ -1746,7 +1746,7 @@ class InBodyPhase extends Phase {
       var bookmark = tree.activeFormattingElements.indexOf(formattingElement);
 
       // Step 6
-      var lastNode = furthestBlock;
+      Node lastNode = furthestBlock;
       var node = furthestBlock;
       int innerLoopCounter = 0;
 

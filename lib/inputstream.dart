@@ -2,11 +2,10 @@
 
 #import('dart:io');
 #import('dart:utf');
-#import('lib/char_encodings.dart');
+#import('char_encodings.dart');
 #import('constants.dart');
 #import('utils.dart');
 #import('encoding_parser.dart');
-
 
 /**
  * Provides a unicode stream of characters to the HTMLTokenizer.
@@ -41,7 +40,7 @@ class HTMLInputStream {
   Iterator<int> dataStream;
 
   /** Cache for charsUntil() */
-  Map charsUntilRegEx;
+  Map<Pair, RegExp> charsUntilRegEx;
 
   List<String> errors;
 

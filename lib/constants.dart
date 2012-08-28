@@ -25,6 +25,8 @@ class DataLossWarning extends UserWarning {
   String toString() => "DataLossWarning: $message";
 }
 
+// TODO(jmesserly): assuming the programmatic name is not important, it would be
+// good to make these "static const" fields on an ErrorMessage class.
 /**
  * These are error messages emitted by [HTMLParser]. The values use Python style
  * string formatting, as implemented by [formatStr]. That function only supports
@@ -307,7 +309,7 @@ final Map<String, String> errorMessages = const {
   "unexpected-end-tag-before-html":
       "Unexpected end tag (%(name)s) before html.",
   "XXX-undefined-error":
-      "Undefined error (this sucks and should be fixed",
+      "Undefined error (this sucks and should be fixed)",
 };
 
 class Namespaces {
@@ -332,7 +334,7 @@ class Namespaces {
   }
 }
 
-final scopingElements = const [
+final List scopingElements = const [
   const Pair(Namespaces.html, "applet"),
   const Pair(Namespaces.html, "caption"),
   const Pair(Namespaces.html, "html"),
