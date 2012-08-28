@@ -65,7 +65,7 @@ class TestData implements Iterable<Map> {
   Iterator<Map> iterator() => _getData().iterator();
 
   List<Map> _getData() {
-    var data = {};
+    var data = <String, String>{};
     var key = null;
     var result = <Map>[];
     for (var line in _lines) {
@@ -75,7 +75,7 @@ class TestData implements Iterable<Map> {
           // Remove trailing newline
           data[key] = data[key].substring(0, data[key].length - 1);
           result.add(normaliseOutput(data));
-          data = {};
+          data = <String, String>{};
         }
         key = heading;
         data[key] = "";
@@ -106,5 +106,71 @@ class TestData implements Iterable<Map> {
       }
     });
     return data;
+  }
+}
+
+/**
+ * Serialize the [document] into the html5 test data format.
+ */
+testSerializer(Document document) {
+  return new TestSerializer()..visit(document).toString();
+}
+
+/** Serializes the DOM into test format. See [testSerializer]. */
+class TestSerializer extends TreeVisitor {
+  final StringBuffer _str;
+  int _indent;
+  String _spaces;
+
+  TestSerializer() : _str = new StringBuffer();
+
+  String toString() => _str.toString();
+
+  int get indent => _indent;
+
+  set indent(int value) {
+    if (_indent == value) return;
+
+    var arr = new List<int>(value);
+    for (int i = 0; i < value; i++) {
+      arr[i] = 32;
+    }
+    _spaces = new String.fromCharCodes(arr);
+    _indent = value;
+  }
+
+  visitNodeFallback(Node node) {
+    _str.add('\n|${_spaces}$node');
+    visitChildren(node);
+  }
+
+  visitChildren(Node node) {
+    indent += 2;
+    for (var child in node.nodes) visit(child);
+    indent -= 2;
+  }
+
+  visitDocument(Document node) {
+    _str.add(node);
+    visitChildren(node);
+  }
+
+  visitElement(Element node) {
+    _str.add('\n|${_spaces}$node');
+    if (node.attributes.length > 0) {
+      indent += 2;
+      var keys = new List.from(node.attributes.getKeys());
+      keys.sort((x, y) => x.compareTo(y));
+      for (var key in keys) {
+        var v = node.attributes[key];
+        if (key is AttributeName) {
+          AttributeName attr = key;
+          key = "${attr.prefix} ${attr.name}";
+        }
+        _str.add('\n|${_spaces}$key="$v"');
+      }
+      indent -= 2;
+    }
+    visitChildren(node);
   }
 }

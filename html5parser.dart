@@ -1247,7 +1247,7 @@ class InBodyPhase extends Phase {
       assert(parser.innerHTMLMode);
     } else if (parser.framesetOK) {
       if (tree.openElements[1].parent != null) {
-        tree.openElements[1].parent.removeChild(tree.openElements[1]);
+        tree.openElements[1].parent.$dom_removeChild(tree.openElements[1]);
       }
       while (tree.openElements.last().name != "html") {
         tree.openElements.removeLast();
@@ -1802,11 +1802,11 @@ class InBodyPhase extends Phase {
         var nodePos = tree.getTableMisnestedNodePosition();
         nodePos[0].insertBefore(lastNode, nodePos[1]);
       } else {
-        commonAncestor.appendChild(lastNode);
+        commonAncestor.$dom_appendChild(lastNode);
       }
 
       // Step 8
-      var clone = formattingElement.cloneNode();
+      var clone = formattingElement.clone();
 
       // Step 9
       furthestBlock.reparentChildren(clone);

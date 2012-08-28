@@ -25,14 +25,15 @@ class Node {
    * A list of child nodes of the current node. This must
    * include all elements but not necessarily other node types.
    */
-  final List<Node> childNodes;
+  final List<Node> nodes;
 
-  Node(this.name) : attributes = {}, childNodes = <Node>[];
+  Node(this.name) : attributes = {}, nodes = <Node>[];
 
+  // TODO(jmesserly): move code away from $dom methods
   /**
    * Insert [node] as a child of the current node
    */
-  abstract void appendChild(node);
+  abstract void $dom_appendChild(node);
 
   /**
    * Insert [data] as text in the current node, positioned before the
@@ -50,13 +51,13 @@ class Node {
   /**
    * Remove [node] from the children of the current node
    */
-  abstract void removeChild(Node node);
+  abstract void $dom_removeChild(Node node);
 
   /**
    * Return a shallow copy of the current node i.e. a node with the same
    * name and attributes but with no parent or child nodes.
    */
-  abstract Node cloneNode();
+  abstract Node clone();
 
   // TODO(jmesserly): should this be a property?
   /**
@@ -88,49 +89,10 @@ class Node {
    */
   void reparentChildren(Node newParent) {
     //XXX - should this method be made more general?
-    for (var child in childNodes) {
-      newParent.appendChild(child);
+    for (var child in nodes) {
+      newParent.$dom_appendChild(child);
     }
-    childNodes.clear();
-  }
-}
-
-// TODO(jmesserly): need to test  The generator version is like 4 lines.
-// The state machine a bit more complicated. But it should be faster because it
-// uses a stack instead of nested iterators.
-/** Iterates over children recursively, via preorder traversal. */
-class PreorderNodeIterator<T extends Node> implements Iterator<T> {
-  T _node;
-  final List<int> _stack;
-
-  PreorderNodeIterator(T node)
-      : _node = node,
-        _stack = node.childNodes.length > 0 ? [0] : const [];
-
-  bool hasNext() => _stack.length > 0;
-
-  T next() {
-    if (!hasNext()) {
-      throw const NoMoreElementsException();
-    }
-    int last = _stack.last();
-    var result = _node.childNodes[last];
-    if (result.childNodes.length > 0) {
-      _node = result;
-      _stack.add(0);
-    } else {
-      while (++last >= _node.childNodes.length) {
-        // go up a level, then advance
-        _stack.removeLast();
-        if (_stack.length == 0) {
-          return result;
-        }
-        last = _stack.last();
-        _node = _node.parent;
-      }
-      _stack[_stack.length - 1] = last;
-    }
-    return result;
+    nodes.clear();
   }
 }
 
@@ -324,7 +286,7 @@ abstract class TreeBuilder<
 
       // Step 8
       entry = activeFormattingElements[i];
-      var clone = entry.cloneNode(); // Mainly to get a new copy of the attributes
+      var clone = entry.clone(); // Mainly to get a new copy of the attributes
 
       // Step 9
       var element = insertElement({"type": "StartTag", "name": clone.name,
@@ -368,7 +330,7 @@ abstract class TreeBuilder<
   void insertRoot(Map token) {
     var element = createElement(token);
     openElements.add(element);
-    document.appendChild(element);
+    document.$dom_appendChild(element);
   }
 
   void insertDoctype(Map token) {
@@ -377,14 +339,14 @@ abstract class TreeBuilder<
     var systemId = token["systemId"];
 
     var doctype = newDoctype(name, publicId, systemId);
-    document.appendChild(doctype);
+    document.$dom_appendChild(doctype);
   }
 
   void insertComment(Map token, [Node parent]) {
     if (parent == null) {
       parent = openElements.last();
     }
-    parent.appendChild(newComment(token["data"]));
+    parent.$dom_appendChild(newComment(token["data"]));
   }
 
     /** Create an element but don't insert it anywhere */
@@ -408,7 +370,7 @@ abstract class TreeBuilder<
     if (namespace == null) namespace = defaultNamespace;
     Element element = newElement(name, namespace);
     element.attributes = token["data"];
-    openElements.last().appendChild(element);
+    openElements.last().$dom_appendChild(element);
     openElements.add(element);
     return element;
   }

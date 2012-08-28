@@ -6,7 +6,7 @@
 final Marker = base.Marker;
 
 // TODO(jmesserly): I added this class to replace the tuple usage in Python.
-// It needs to be hashable and store the prefix, name, and namespace.
+// How does this fit in to dart:html?
 class AttributeName implements Hashable, Comparable {
   /** The namespace prefix, e.g. `xlink`. */
   final String prefix;
@@ -59,84 +59,82 @@ String _escape(String text, [Map extraReplace]) {
   return text;
 }
 
-String _spaces(int indent) {
-  if (indent == 0) return '';
-  var arr = new List<int>(indent);
-  for (int i = 0; i < indent; i++) {
-    arr[i] = 32;
-  }
-  return new String.fromCharCodes(arr);
-}
-
 /** Really basic implementation of a DOM-core like thing. */
-class Node extends base.Node implements Iterable<Node> {
-  static const int type = -1;
+class Node extends base.Node {
+  static const int ATTRIBUTE_NODE = 2;
+  static const int CDATA_SECTION_NODE = 4;
+  static const int COMMENT_NODE = 8;
+  static const int DOCUMENT_FRAGMENT_NODE = 11;
+  static const int DOCUMENT_NODE = 9;
+  static const int DOCUMENT_TYPE_NODE = 10;
+  static const int ELEMENT_NODE = 1;
+  static const int ENTITY_NODE = 6;
+  static const int ENTITY_REFERENCE_NODE = 5;
+  static const int NOTATION_NODE = 12;
+  static const int PROCESSING_INSTRUCTION_NODE = 7;
+  static const int TEXT_NODE = 3;
 
   Node(name) : super(name);
 
-  // TODO(jmesserly): some bug is preventing this from working.
-  // List<Node> get childNodes() => super.childNodes;
+  // TODO(jmesserly): this is a workaround for http://dartbug.com/4754
+  int get $dom_nodeType => nodeType;
 
-  /** Iterates over children recursively, via preorder traversal. */
-  base.PreorderNodeIterator<Node> iterator() =>
-      new base.PreorderNodeIterator(this);
+  abstract int get nodeType;
 
-  // TODO(jmesserly): fix the efficiency of the string methods. They do tons of
-  // string concat.
-  abstract String toxml();
+  // This is here so the type system knows we only have Nodes, not base.Nodes.
+  List<Node> get nodes => super.nodes;
 
-  abstract String hilite();
+  String get outerHTML => _addOuterHtml(new StringBuffer()).toString();
 
-  abstract Node cloneNode();
+  String get innerHTML => _addInnerHtml(new StringBuffer()).toString();
+
+  abstract StringBuffer _addOuterHtml(StringBuffer str);
+
+  StringBuffer _addInnerHtml(StringBuffer str) {
+    for (Node child in nodes) child._addOuterHtml(str);
+    return str;
+  }
 
   String toString() => name;
 
-  String printTree([int indent = 0]) {
-    var tree = '\n|${_spaces(indent)}$this';
-    for (var child in childNodes) {
-      tree = '${tree}${child.printTree(indent + 2)}';
-    }
-    return tree;
-  }
-
-  void appendChild(Node node) {
-    if (node is TextNode && childNodes.length > 0 &&
-        childNodes.last() is TextNode) {
-      TextNode last = childNodes.last();
+  void $dom_appendChild(Node node) {
+    if (node is TextNode && nodes.length > 0 &&
+        nodes.last() is TextNode) {
+      TextNode last = nodes.last();
       last.value = '${last.value}${node.value}';
     } else {
-      childNodes.add(node);
+      nodes.add(node);
     }
     node.parent = this;
   }
 
   void insertText(String data, [Node refNode]) {
     if (refNode == null) {
-      appendChild(new TextNode(data));
+      $dom_appendChild(new TextNode(data));
     } else {
       insertBefore(new TextNode(data), refNode);
     }
   }
 
   void insertBefore(Node node, Node refNode) {
-    int index = childNodes.indexOf(refNode);
+    int index = nodes.indexOf(refNode);
     if (node is TextNode && index > 0 &&
-        childNodes[index - 1] is TextNode) {
-      TextNode last = childNodes[index - 1];
+        nodes[index - 1] is TextNode) {
+      TextNode last = nodes[index - 1];
       last.value = '${last.value}${node.value}';
     } else {
-      childNodes.insertRange(index, 1, node);
+      nodes.insertRange(index, 1, node);
     }
     node.parent = this;
   }
 
-  void removeChild(Node node) {
-    removeFromList(childNodes, node);
+  void $dom_removeChild(Node node) {
+    removeFromList(nodes, node);
     node.parent = null;
   }
 
   /** Return true if the node has children or text. */
-  bool hasContent() => childNodes.length > 0;
+  bool hasContent() => nodes.length > 0;
 
   Pair<String, String> get nameTuple {
     var ns = namespace != null ? namespace : Namespaces.html;
@@ -145,55 +143,32 @@ class Node extends base.Node implements Iterable<Node> {
 }
 
 class Document extends Node {
-  static const type = 1;
-
   Document() : super(null);
+
+  int get nodeType => Node.DOCUMENT_NODE;
 
   String toString() => "#document";
 
-  String toxml() {
-    var result = "";
-    for (var child in childNodes) {
-      result = '${result}${child.toxml()}';
-    }
-    return result;
-  }
+  StringBuffer _addOuterHtml(StringBuffer str) => _addInnerHtml(str);
 
-  String hilite() {
-    var result = "<pre>";
-    for (var child in childNodes) {
-      result = '${result}${child.hilite()}';
-    }
-    return "${result}</pre>";
-  }
-
-  String printTree([int indent = 0]) {
-    var tree = toString();
-    indent += 2;
-    for (var child in childNodes) {
-      tree = '${tree}${child.printTree(indent)}';
-    }
-    return tree;
-  }
-
-  Document cloneNode() => new Document();
+  Document clone() => new Document();
 }
 
 class DocumentFragment extends Document {
-  static const type = 2;
+  int get nodeType => Node.DOCUMENT_FRAGMENT_NODE;
 
   String toString() => "#document-fragment";
 
-  DocumentFragment cloneNode() => new DocumentFragment();
+  DocumentFragment clone() => new DocumentFragment();
 }
 
 class DocumentType extends Node {
-  static const type = 3;
-
   final String publicId;
   final String systemId;
 
   DocumentType(String name, this.publicId, this.systemId) : super(name);
+
+  int get nodeType => Node.DOCUMENT_TYPE_NODE;
 
   String toString() {
     if (publicId != null || systemId != null) {
@@ -206,126 +181,74 @@ class DocumentType extends Node {
   }
 
 
-  String toxml() => toString();
+  StringBuffer _addOuterHtml(StringBuffer str) => str.add(toString());
 
-  String hilite() => '<code class="markup doctype">&lt;!DOCTYPE $name></code>';
-
-  DocumentType cloneNode() =>
-      new DocumentType(name, publicId, systemId);
+  DocumentType clone() => new DocumentType(name, publicId, systemId);
 }
 
 class TextNode extends Node {
-  static const type = 4;
-
   String value;
 
   TextNode(this.value) : super(null);
 
+  int get nodeType => Node.TEXT_NODE;
+
   String toString() => '"$value"';
 
-  String toxml() => _escape(value);
+  StringBuffer _addOuterHtml(StringBuffer str) => str.add(_escape(value));
 
-  String hilite() => toxml();
-
-  TextNode cloneNode() => new TextNode(value);
+  TextNode clone() => new TextNode(value);
 }
 
 class Element extends Node {
-  static const type = 5;
-
   final String namespace;
 
   Element(String name, [this.namespace]) : super(name);
+
+  int get nodeType => Node.ELEMENT_NODE;
 
   String toString() {
     if (namespace == null) return "<$name>";
     return "<${Namespaces.getPrefix(namespace)} $name>";
   }
 
-  String toxml() {
-    var result = '<$name';
+  StringBuffer _addOuterHtml(StringBuffer str) {
+    str.add('<$name');
     if (attributes.length > 0) {
       attributes.forEach((key, v) {
         v = _escape(v, {'"': "&quot;"});
-        result = '$result $key="$v"';
+        str.add(' $key="$v"');
       });
     }
-    if (childNodes.length > 0) {
-      result = '${result}>';
-      for (var child in childNodes) {
-        result = '${result}${child.toxml()}';
-      }
-      result = '${result}</$name>';
+    if (nodes.length > 0) {
+      str.add('>');
+      _addInnerHtml(str);
+      str.add('</$name>');
     } else {
-      result = '$result/>';
+      str.add('/>');
     }
-    return result;
   }
 
-  String hilite() {
-    var result = '&lt;<code class="markup element-name">$name</code>';
-    if (attributes.length > 0) {
-      attributes.forEach((key, v) {
-        v = _escape(v, {'"': "&quot;"});
-        result = '$result <code class="markup attribute-name">$key</code>'
-            '=<code class="markup attribute-value">"$v"</code>';
-      });
-    }
-    if (childNodes.length > 0) {
-      result = "${result}>";
-      for (var child in childNodes) {
-        result = '${result}${child.hilite()}';
-      }
-    } else if (voidElements.indexOf(name) >= 0) {
-      return "${result}>";
-    }
-    return '${result}&lt;/<code class="markup element-name">$name</code>>';
-  }
-
-  String printTree([int indent = 0]) {
-    var tree = '\n|${_spaces(indent)}$this';
-    indent += 2;
-    if (attributes.length > 0) {
-      var keys = new List.from(attributes.getKeys());
-      keys.sort((x, y) => x.compareTo(y));
-      for (var key in keys) {
-        var v = attributes[key];
-        if (key is AttributeName) {
-          AttributeName attr = key;
-          key = "${attr.prefix} ${attr.name}";
-        }
-        tree = '${tree}\n|${_spaces(indent)}$key="$v"';
-      }
-    }
-    for (var child in childNodes) {
-      tree = '${tree}${child.printTree(indent)}';
-    }
-    return tree;
-  }
-
-  Element cloneNode() =>
+  Element clone() =>
       new Element(name, namespace)..attributes = new Map.from(attributes);
 }
 
 class CommentNode extends Node {
-  static const type = 6;
-
   final String data;
 
   CommentNode(this.data) : super(null);
 
+  int get nodeType => Node.COMMENT_NODE;
+
   String toString() => "<!-- $data -->";
 
-  String toxml() => "<!--$data-->";
+  StringBuffer _addOuterHtml(StringBuffer str) => str.add("<!--$data-->");
 
-  String hilite() =>
-      '<code class="markup comment">&lt;!--${_escape(data)}--></code>';
-
-  CommentNode cloneNode() => new CommentNode(data);
+  CommentNode clone() => new CommentNode(data);
 }
 
-class TreeBuilder extends
-  base.TreeBuilder<Document, Element, CommentNode, DocumentType, DocumentFragment> {
+class TreeBuilder extends base.TreeBuilder<
+    Document, Element, CommentNode, DocumentType, DocumentFragment> {
 
   TreeBuilder(bool namespaceHTMLElements) : super(namespaceHTMLElements);
 
@@ -336,8 +259,97 @@ class TreeBuilder extends
   DocumentType newDoctype(String name, String publicId, String systemId) =>
       new DocumentType(name, publicId, systemId);
   DocumentFragment newFragment() => new DocumentFragment();
-
-  String testSerializer(Node node) => node.printTree();
 }
 
+/** A simple tree visitor for the DOM nodes. */
+class TreeVisitor {
+  visit(Node node) {
+    switch (node.nodeType) {
+      case Node.ELEMENT_NODE: return visitElement(node);
+      case Node.TEXT_NODE: return visitTextNode(node);
+      case Node.COMMENT_NODE: return visitCommentNode(node);
+      case Node.DOCUMENT_FRAGMENT_NODE: return visitDocumentFragment(node);
+      case Node.DOCUMENT_NODE: return visitDocument(node);
+      case Node.DOCUMENT_TYPE_NODE: return visitDocumentType(node);
+      default: throw new UnsupportedOperationException(
+          'DOM node type ${node.nodeType}');
+    }
+  }
 
+  visitChildren(Node node) {
+    for (var child in node.nodes) visit(child);
+  }
+
+  /**
+   * The fallback handler if the more specific visit method hasn't been
+   * overriden. Only use this from a subclass of [TreeVisitor], otherwise
+   * call [visit] instead.
+   */
+  visitNodeFallback(Node node) => visitChildren(node);
+
+  visitDocument(Document node) => visitNodeFallback(node);
+  visitDocumentFragment(DocumentFragment node) => visitNodeFallback(node);
+  visitDocumentType(DocumentType node) => visitNodeFallback(node);
+  visitTextNode(TextNode node) => visitNodeFallback(node);
+  visitElement(Element node) => visitNodeFallback(node);
+  visitCommentNode(CommentNode node) => visitNodeFallback(node);
+}
+
+/**
+ * Converts the DOM tree into another DOM tree with code markup suitable for
+ * displaying the HTML's source code with CSS colors for different parts of the
+ * markup. See also [CodeMarkupVisitor].
+ */
+htmlToCodeMarkup(Node node) {
+  return new CodeMarkupVisitor()..visit(node).toString();
+}
+
+/**
+ * Converts the DOM tree into another DOM tree with code markup. See also
+ * [htmlToCodeMarkup].
+ */
+class CodeMarkupVisitor extends TreeVisitor {
+  final StringBuffer _str;
+
+  CodeMarkupVisitor() : _str = new StringBuffer();
+
+  String toString() => _str.toString();
+
+  visitDocument(Document node) {
+    _str.add("<pre>");
+    visitChildren(node);
+    _str.add("</pre>");
+  }
+
+  visitDocumentType(DocumentType node) {
+    _str.add('<code class="markup doctype">&lt;!DOCTYPE ${node.name}></code>');
+  }
+
+  visitTextNode(TextNode node) {
+    node._addOuterHtml(_str);
+  }
+
+  visitElement(Element node) {
+    _str.add('&lt;<code class="markup element-name">${node.name}</code>');
+    if (node.attributes.length > 0) {
+      node.attributes.forEach((key, v) {
+        v = _escape(v, {'"': "&quot;"});
+        _str.add(' <code class="markup attribute-name">$key</code>'
+            '=<code class="markup attribute-value">"$v"</code>');
+      });
+    }
+    if (node.nodes.length > 0) {
+      _str.add(">");
+      visitChildren(node);
+    } else if (voidElements.indexOf(node.name) >= 0) {
+      _str.add(">");
+      return;
+    }
+    _str.add('&lt;/<code class="markup element-name">${node.name}</code>>');
+  }
+
+  visitCommentNode(CommentNode node) {
+    var data = _escape(node.data);
+    _str.add('<code class="markup comment">&lt;!--${data}--></code>');
+  }
+}

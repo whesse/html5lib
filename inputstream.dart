@@ -41,7 +41,7 @@ class HTMLInputStream {
   Iterator<int> dataStream;
 
   /** Cache for charsUntil() */
-  Map charsUntilRegEx;
+  Map<Dynamic, RegExp> charsUntilRegEx;
 
   List<String> errors;
 
@@ -192,7 +192,7 @@ class HTMLInputStream {
     return encoding;
   }
 
-  List<int> _position(offset) {
+  List<int> _position(int offset) {
     var nLines = 0;
     for (int i = 0; i < offset; i++) {
       if (chunk.charCodeAt(i) == NEWLINE) nLines++;
