@@ -115,11 +115,7 @@ class EncodingBytes implements Iterable<String> {
   bool jumpTo(String bytes) {
     var newPosition = _bytes.indexOf(bytes, position);
     if (newPosition >= 0) {
-      // XXX: This is ugly, but I can't see a nicer way to fix this.
-      if (_position == -1) {
-        _position = 0;
-      }
-      _position += newPosition + bytes.length - 1;
+      _position = newPosition + bytes.length - 1;
       return true;
     } else {
       throw const NoMoreElementsException();

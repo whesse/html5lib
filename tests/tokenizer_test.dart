@@ -5,10 +5,10 @@
 #import('dart:json');
 #import('dart:mirrors');
 #import('package:unittest/unittest.dart');
+#import('../lib/char_encodings.dart');
+#import('../lib/constants.dart', prefix: 'constants');
+#import('../lib/utils.dart');
 #import('../tokenizer.dart');
-#import('../constants.dart', prefix: 'constants');
-#import('../utils.dart');
-#import('../codecs.dart');
 #import('support.dart');
 
 /**

@@ -1,17 +1,21 @@
 /** Internals to the tree builders. */
 #library('base');
 
-#import('../constants.dart');
-#import('../utils.dart');
-#import('../utils/list_proxy.dart');
+#import('../lib/constants.dart');
+#import('../lib/list_proxy.dart');
+#import('../lib/utils.dart');
 
 // The scope markers are inserted when entering object elements,
 // marquees, table cells, and table captions, and are used to prevent formatting
 // from "leaking" into tables, object elements, and marquees.
 final Marker = null;
 
+// TODO(jmesserly): the generic type here is strange. But it seems the only
+// way to get the right type on childNodes. (and overriding that field didn't
+// work on the VM in checked mode.
+// We should probably get rid of this entire abstraction layer, though.
 /** Node representing an item in the tree. */
-class Node {
+class Node<T extends Node> {
   /** The tag name associated with the node. */
   final String name;
 
@@ -25,9 +29,9 @@ class Node {
    * A list of child nodes of the current node. This must
    * include all elements but not necessarily other node types.
    */
-  final List<Node> childNodes;
+  final List<T> childNodes;
 
-  Node(this.name) : attributes = {}, childNodes = <Node>[];
+  Node(this.name) : attributes = {}, childNodes = <T>[];
 
   /**
    * Insert [node] as a child of the current node
@@ -92,45 +96,6 @@ class Node {
       newParent.appendChild(child);
     }
     childNodes.clear();
-  }
-}
-
-// TODO(jmesserly): need to test  The generator version is like 4 lines.
-// The state machine a bit more complicated. But it should be faster because it
-// uses a stack instead of nested iterators.
-/** Iterates over children recursively, via preorder traversal. */
-class PreorderNodeIterator<T extends Node> implements Iterator<T> {
-  T _node;
-  final List<int> _stack;
-
-  PreorderNodeIterator(T node)
-      : _node = node,
-        _stack = node.childNodes.length > 0 ? [0] : const [];
-
-  bool hasNext() => _stack.length > 0;
-
-  T next() {
-    if (!hasNext()) {
-      throw const NoMoreElementsException();
-    }
-    int last = _stack.last();
-    var result = _node.childNodes[last];
-    if (result.childNodes.length > 0) {
-      _node = result;
-      _stack.add(0);
-    } else {
-      while (++last >= _node.childNodes.length) {
-        // go up a level, then advance
-        _stack.removeLast();
-        if (_stack.length == 0) {
-          return result;
-        }
-        last = _stack.last();
-        _node = _node.parent;
-      }
-      _stack[_stack.length - 1] = last;
-    }
-    return result;
   }
 }
 
