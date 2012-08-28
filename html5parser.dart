@@ -1686,7 +1686,10 @@ class InBodyPhase extends Phase {
 
   /** The much-feared adoption agency algorithm. */
   endTagFormatting(token) {
-    // http://www.whatwg.org/specs/web-apps/current-work///adoptionAgency
+    // http://www.whatwg.org/specs/web-apps/current-work/multipage/tree-construction.html#adoptionAgency
+    // TODO(jmesserly): the comments here don't match the numbered steps in the
+    // updated spec. This needs a pass over it to verify that it still matches.
+    // In particular the html5lib Python code skiped "step 4", I'm not sure why.
     // XXX Better parseError messages appreciated.
     int outerLoopCounter = 0;
     while (outerLoopCounter < 8) {
@@ -1733,10 +1736,6 @@ class InBodyPhase extends Phase {
       }
 
       var commonAncestor = tree.openElements[afeIndex - 1];
-
-      // Step 4
-      //if (furthestBlock.parent != null) {
-      //  furthestBlock.parent.removeChild(furthestBlock)
 
       // Step 5
       // The bookmark is supposed to help us identify where to reinsert
