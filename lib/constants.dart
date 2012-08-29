@@ -1,6 +1,7 @@
 #library('constants');
 
 #import('utils.dart');
+#import('token.dart');
 
 // TODO(jmesserly): fix up the const lists. For the bigger ones, we need faster
 // lookup than linear search "indexOf". In the Python code they were frozensets.
@@ -3160,33 +3161,21 @@ final Map<String, String> encodings = const {
   'x-x-big5': 'big5'
 };
 
-
-final DoctypeToken = 0;
-final CharactersToken = 1;
-final SpaceCharactersToken = 2;
-final StartTagToken = 3;
-final EndTagToken = 4;
-final EmptyTagToken = 5;
-final CommentToken = 6;
-final ParseErrorToken = 8;
-
 final tokenTypes = const {
-  "Doctype": DoctypeToken,
-  "Characters": CharactersToken,
-  "SpaceCharacters": SpaceCharactersToken,
-  "StartTag": StartTagToken,
-  "EndTag": EndTagToken,
-  "EmptyTag": EmptyTagToken,
-  "Comment": CommentToken,
-  "ParseError": ParseErrorToken,
+  "Doctype": TokenKind.doctype,
+  "Characters": TokenKind.characters,
+  "SpaceCharacters": TokenKind.spaceCharacters,
+  "StartTag": TokenKind.startTag,
+  "EndTag": TokenKind.endTag,
+  "Comment": TokenKind.comment,
+  "ParseError": TokenKind.parseError,
 };
 
 
 bool isTagTokenType(int tagType) {
   switch (tagType) {
-    case StartTagToken:
-    case EndTagToken:
-    case EmptyTagToken:
+    case TokenKind.startTag:
+    case TokenKind.endTag:
       return true;
   }
   return false;

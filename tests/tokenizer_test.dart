@@ -88,47 +88,47 @@ class TokenizerTestParser {
     return outputTokens;
   }
 
-  void processDoctype(Map token) {
+  void processDoctype(Token token) {
     outputTokens.add(["DOCTYPE", token["name"], token["publicId"],
         token["systemId"], token["correct"]]);
   }
 
-  void processStartTag(Map token) {
+  void processStartTag(Token token) {
     outputTokens.add(["StartTag", token["name"],
-        makeDict(token["data"]), token["selfClosing"]]);
+        makeDict(token.data), token.selfClosing]);
   }
 
-  void processEmptyTag(Map token) {
+  void processEmptyTag(Token token) {
     if (constants.voidElements.indexOf(token["name"]) >= 0) {
       outputTokens.add("ParseError");
     }
-    outputTokens.add(["StartTag", token["name"], makeDict(token["data"])]);
+    outputTokens.add(["StartTag", token["name"], makeDict(token.data)]);
   }
 
-  void processEndTag(Map token) {
-    outputTokens.add(["EndTag", token["name"], token["selfClosing"]]);
+  void processEndTag(Token token) {
+    outputTokens.add(["EndTag", token["name"], token.selfClosing]);
   }
 
-  void processComment(Map token) {
-    outputTokens.add(["Comment", token["data"]]);
+  void processComment(Token token) {
+    outputTokens.add(["Comment", token.data]);
   }
 
-  void processSpaceCharacters(Map token) {
+  void processSpaceCharacters(Token token) {
     processCharacters(token);
   }
 
-  void processCharacters(Map token) {
-    outputTokens.add(["Character", token["data"]]);
+  void processCharacters(Token token) {
+    outputTokens.add(["Character", token.data]);
   }
 
   void processEOF(token) {
   }
 
-  void processParseError(Map token) {
+  void processParseError(Token token) {
     // TODO(jmesserly): when debugging test failures it can be useful to add
     // logging here like `print('ParseError $token');`. It would be nice to
     // use the actual logging library.
-    outputTokens.add(["ParseError", token["data"]]);
+    outputTokens.add(["ParseError", token.data]);
   }
 }
 

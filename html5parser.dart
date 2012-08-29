@@ -5,6 +5,7 @@
 #import('treebuilders/simpletree.dart');
 #import('lib/constants.dart');
 #import('lib/encoding_parser.dart');
+#import('lib/token.dart');
 #import('lib/utils.dart');
 #import('tokenizer.dart');
 
@@ -229,13 +230,13 @@ class HTMLParser {
 
     return !(node.namespace == tree.defaultNamespace ||
             (isMathMLTextIntegrationPoint(node) &&
-             (type == StartTagToken &&
+             (type == TokenKind.startTag &&
               token["name"] != "mglyph" && token["name"] != "malignmark") ||
-             (type == CharactersToken || type == SpaceCharactersToken)) ||
+             (type == TokenKind.characters || type == TokenKind.spaceCharacters)) ||
             (node.namespace == Namespaces.mathml &&
              node.name == "annotation-xml" && token["name"] == "svg") ||
-            (isHTMLIntegrationPoint(node) && (type == StartTagToken ||
-             type == CharactersToken || type == SpaceCharactersToken)));
+            (isHTMLIntegrationPoint(node) && (type == TokenKind.startTag ||
+             type == TokenKind.characters || type == TokenKind.spaceCharacters)));
   }
 
   void mainLoop() {
@@ -246,8 +247,8 @@ class HTMLParser {
       while (newToken !== null) {
         type = newToken["type"];
 
-        if (type == ParseErrorToken) {
-          parseError(newToken["data"], newToken["datavars"]);
+        if (type == TokenKind.parseError) {
+          parseError(newToken.data, newToken["datavars"]);
           newToken = null;
         } else {
           Phase phase_ = phase;
@@ -256,29 +257,29 @@ class HTMLParser {
           }
 
           switch (type) {
-            case CharactersToken:
+            case TokenKind.characters:
               newToken = phase_.processCharacters(newToken);
               break;
-            case SpaceCharactersToken:
+            case TokenKind.spaceCharacters:
               newToken = phase_.processSpaceCharacters(newToken);
               break;
-            case StartTagToken:
+            case TokenKind.startTag:
               newToken = phase_.processStartTag(newToken);
               break;
-            case EndTagToken:
+            case TokenKind.endTag:
               newToken = phase_.processEndTag(newToken);
               break;
-            case CommentToken:
+            case TokenKind.comment:
               newToken = phase_.processComment(newToken);
               break;
-            case DoctypeToken:
+            case TokenKind.doctype:
               newToken = phase_.processDoctype(newToken);
               break;
           }
         }
       }
 
-      if (type == StartTagToken && token["selfClosing"]
+      if (type == TokenKind.startTag && token["selfClosing"]
           && !token["selfClosingAcknowledged"]) {
         parseError("non-void-element-with-trailing-solidus",
             {"name": token["name"]});
@@ -307,21 +308,21 @@ class HTMLParser {
   }
 
   /** HTML5 specific normalizations to the token stream. */
-  Map normalizeToken(Map token) {
-    if (token["type"] == StartTagToken) {
-      token["data"] = makeDict(token["data"]);
+  Map normalizeToken(Token token) {
+    if (token["type"] == TokenKind.startTag) {
+      token.data = makeDict(token.data);
     }
     return token;
   }
 
-  void adjustMathMLAttributes(Map token) {
-    var orig = token["data"].remove("definitionurl");
+  void adjustMathMLAttributes(Token token) {
+    var orig = token.data.remove("definitionurl");
     if (orig != null) {
-      token["data"]["definitionURL"] = orig;
+      token.data["definitionURL"] = orig;
     }
   }
 
-  void adjustSVGAttributes(Map token) {
+  void adjustSVGAttributes(Token token) {
     final replacements = const {
       "attributename":"attributeName",
       "attributetype":"attributeType",
@@ -386,15 +387,15 @@ class HTMLParser {
       "ychannelselector":"yChannelSelector",
       "zoomandpan":"zoomAndPan"
     };
-    for (var originalName in token["data"].getKeys()) {
+    for (var originalName in token.data.getKeys()) {
       var svgName = replacements[originalName];
       if (svgName != null) {
-        token["data"][svgName] = token["data"].remove(originalName);
+        token.data[svgName] = token.data.remove(originalName);
       }
     }
   }
 
-  void adjustForeignAttributes(Map token) {
+  void adjustForeignAttributes(Token token) {
     // TODO(jmesserly): I don't like mixing non-string objects with strings in
     // the Node.attributes Map. Is there another solution?
     final replacements = const {
@@ -414,10 +415,10 @@ class HTMLParser {
       "xmlns:xlink": const AttributeName("xmlns", "xlink", Namespaces.xmlns)
     };
 
-    for (var originalName in token["data"].getKeys()) {
+    for (var originalName in token.data.getKeys()) {
       var foreignName = replacements[originalName];
       if (foreignName != null) {
-        token["data"][foreignName] = token["data"].remove(originalName);
+        token.data[foreignName] = token.data.remove(originalName);
       }
     }
   }
@@ -476,7 +477,7 @@ class HTMLParser {
    * Generic RCDATA/RAWTEXT Parsing algorithm
    * [contentType] - RCDATA or RAWTEXT
    */
-  void parseRCDataRawtext(Map token, String contentType) {
+  void parseRCDataRawtext(Token token, String contentType) {
     assert(contentType == "RAWTEXT" || contentType == "RCDATA");
 
     var element = tree.insertElement(token);
@@ -527,11 +528,11 @@ class Phase {
   }
 
   Map processCharacters(token) {
-    tree.insertText(token["data"]);
+    tree.insertText(token.data);
   }
 
   Map processSpaceCharacters(token) {
-    tree.insertText(token["data"]);
+    tree.insertText(token.data);
   }
 
   Map processStartTag(token) {
@@ -544,7 +545,7 @@ class Phase {
     }
     // XXX Need a check here to see if the first start tag token emitted is
     // this token... If it's not, invoke parser.parseError().
-    token["data"].forEach((attr, value) {
+    token.data.forEach((attr, value) {
       tree.openElements[0].attributes.putIfAbsent(attr, () => value);
     });
     parser.firstStartTag = false;
@@ -869,7 +870,7 @@ class InHeadPhase extends Phase {
     tree.openElements.removeLast();
     token["selfClosingAcknowledged"] = true;
 
-    var attributes = token["data"];
+    var attributes = token.data;
     if (!parser.tokenizer.stream.charEncodingCertain) {
       var charset = attributes["charset"];
       var content = attributes["content"];
@@ -1017,7 +1018,7 @@ class AfterHeadPhase extends Phase {
   }
 }
 
-typedef Map TokenProccessor(Map token);
+typedef Token tokenProccessor(Token token);
 
 class InBodyPhase extends Phase {
   TokenProccessor processSpaceCharactersFunc;
@@ -1189,7 +1190,7 @@ class InBodyPhase extends Phase {
   Map processSpaceCharactersDropNewline(token) {
     // Sometimes (start of <pre>, <listing>, and <textarea> blocks) we
     // want to drop leading newlines
-    var data = token["data"];
+    var data = token.data;
     processSpaceCharactersFunc = processSpaceCharactersNonPre;
     if (data.startsWith("\n")) {
       var lastOpen = tree.openElements.last();
@@ -1205,20 +1206,20 @@ class InBodyPhase extends Phase {
   }
 
   Map processCharacters(token) {
-    if (token["data"] == "\u0000") {
+    if (token.data == "\u0000") {
       //The tokenizer should always emit null on its own
       return null;
     }
     tree.reconstructActiveFormattingElements();
-    tree.insertText(token["data"]);
-    if (parser.framesetOK && !allWhitespace(token["data"])) {
+    tree.insertText(token.data);
+    if (parser.framesetOK && !allWhitespace(token.data)) {
       parser.framesetOK = false;
     }
   }
 
   Map processSpaceCharactersNonPre(token) {
     tree.reconstructActiveFormattingElements();
-    tree.insertText(token["data"]);
+    tree.insertText(token.data);
   }
 
   Map processSpaceCharacters(token) => processSpaceCharactersFunc(token);
@@ -1234,7 +1235,7 @@ class InBodyPhase extends Phase {
       assert(parser.innerHTMLMode);
     } else {
       parser.framesetOK = false;
-      token["data"].forEach((attr, value) {
+      token.data.forEach((attr, value) {
         tree.openElements[1].attributes.putIfAbsent(attr, () => value);
       });
     }
@@ -1410,7 +1411,7 @@ class InBodyPhase extends Phase {
   void startTagInput(token) {
     var savedFramesetOK = parser.framesetOK;
     startTagVoidFormatting(token);
-    if (asciiUpper2Lower(token["data"]["type"]) == "hidden") {
+    if (asciiUpper2Lower(token.data["type"]) == "hidden") {
       //input type=hidden doesn't change framesetOK
       parser.framesetOK = savedFramesetOK;
     }
@@ -1437,7 +1438,7 @@ class InBodyPhase extends Phase {
     parser.parseError("unexpected-start-tag-treated-as",
         {"originalName": "image", "newName": "img"});
     processStartTag(impliedTagToken("img", "StartTag",
-        attributes: token["data"], selfClosing: token["selfClosing"]));
+        attributes: token.data, selfClosing: token["selfClosing"]));
   }
 
   void startTagIsIndex(token) {
@@ -1446,7 +1447,7 @@ class InBodyPhase extends Phase {
       return;
     }
     var formAttrs = {};
-    var dataAction = token["data"]["action"];
+    var dataAction = token.data["action"];
     if (dataAction != null) {
       formAttrs["action"] = dataAction;
     }
@@ -1455,12 +1456,12 @@ class InBodyPhase extends Phase {
     processStartTag(impliedTagToken("hr", "StartTag"));
     processStartTag(impliedTagToken("label", "StartTag"));
     // XXX Localization ...
-    var prompt = token["data"]["prompt"];
+    var prompt = token.data["prompt"];
     if (prompt == null) {
       prompt = "This is a searchable index. Enter search keywords: ";
     }
-    processCharacters({"type":CharactersToken, "data":prompt});
-    var attributes = new Map.from(token["data"]);
+    processCharacters({"type":TokenKind.characters, "data":prompt});
+    var attributes = new Map.from(token.data);
     attributes.remove('action');
     attributes.remove('prompt');
     attributes["name"] = "isindex";
@@ -1878,7 +1879,7 @@ class TextPhase extends Phase {
   }
 
   Map processCharacters(token) {
-    tree.insertText(token["data"]);
+    tree.insertText(token.data);
   }
 
   bool processEOF() {
@@ -2021,7 +2022,7 @@ class InTablePhase extends Phase {
   }
 
   void startTagInput(token) {
-    if (asciiUpper2Lower(token["data"]["type"]) == "hidden") {
+    if (asciiUpper2Lower(token.data["type"]) == "hidden") {
       parser.parseError("unexpected-hidden-input-in-table");
       tree.insertElement(token);
       // XXX associate with form
@@ -2089,9 +2090,9 @@ class InTableTextPhase extends Phase {
   InTableTextPhase(parser) : super(parser), characterTokens = [];
 
   void flushCharacters() {
-    var data = joinStr(characterTokens.map((t) => t["data"]));
+    var data = joinStr(characterTokens.map((t) => t.data));
     if (!allWhitespace(data)) {
-      var token = {"type": CharactersToken, "data": data};
+      var token = {"type": TokenKind.characters, "data": data};
       (parser.phases["inTable"] as InTablePhase).insertText(token);
     } else if (data.length > 0) {
       tree.insertText(data);
@@ -2112,7 +2113,7 @@ class InTableTextPhase extends Phase {
   }
 
   Map processCharacters(token) {
-    if (token["data"] == "\u0000") {
+    if (token.data == "\u0000") {
       return null;
     }
     characterTokens.add(token);
@@ -2667,10 +2668,10 @@ class InSelectPhase extends Phase {
   }
 
   Map processCharacters(token) {
-    if (token["data"] == "\u0000") {
+    if (token.data == "\u0000") {
       return null;
     }
-    tree.insertText(token["data"]);
+    tree.insertText(token.data);
   }
 
   void startTagOption(token) {
@@ -2873,9 +2874,9 @@ class InForeignContentPhase extends Phase {
   }
 
   Map processCharacters(token) {
-    if (token["data"] == "\u0000") {
-      token["data"] = "\uFFFD";
-    } else if (parser.framesetOK && !allWhitespace(token["data"])) {
+    if (token.data == "\u0000") {
+      token.data = "\uFFFD";
+    } else if (parser.framesetOK && !allWhitespace(token.data)) {
       parser.framesetOK = false;
     }
     super.processCharacters(token);
@@ -2885,9 +2886,9 @@ class InForeignContentPhase extends Phase {
     var currentNode = tree.openElements.last();
     if (breakoutElements.indexOf(token["name"]) >= 0 ||
         (token["name"] == "font" &&
-         (token["data"].containsKey("color") ||
-          token["data"].containsKey("face") ||
-          token["data"].containsKey("size")))) {
+         (token.data.containsKey("color") ||
+          token.data.containsKey("face") ||
+          token.data.containsKey("size")))) {
 
       parser.parseError("unexpected-html-element-in-foreign-content",
           {'name': token["name"]});
