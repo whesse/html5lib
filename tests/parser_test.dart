@@ -67,17 +67,11 @@ void runParserTest(String groupName, String innerHTML, String input,
         "\n\nException:\n$e\n\nStack trace:\n$stack");
   }
 
-  String output = convertTreeDump(p.tree.testSerializer(document));
+  var output = convertTreeDump(p.tree.testSerializer(document));
 
   expected = convertExpected(expected);
   if (namespaceHTMLElements) {
     expected = namespaceHtml(expected);
-  }
-
-  if (groupName == 'plain-text-unsafe' && output != expected) {
-    // TODO(jmesserly): investigate why these are failing.
-    print('SKIP(needsfix): $groupName $input');
-    return;
   }
 
   expect(output, equals(expected), reason:
@@ -110,8 +104,7 @@ void main() {
           }
 
           for (var treeCtor in treeTypes.getValues()) {
-            // TOOD(jmesserly): fix namespaceHTMLElements
-            for (var namespaceHTMLElements in const [true, false]) {
+            for (var namespaceHTMLElements in const [false, true]) {
               test(input, () {
                 runParserTest(testName, innerHTML, input, expected, errors,
                     treeCtor, namespaceHTMLElements);

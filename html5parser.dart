@@ -211,7 +211,7 @@ class HTMLParser {
         element.namespace == Namespaces.mathml) {
       var enc = element.attributes["encoding"];
       if (enc != null) enc = asciiUpper2Lower(enc);
-      return enc != null && (enc == "text/html" || enc == "application/xhtml+xml");
+      return enc == "text/html" || enc == "application/xhtml+xml";
     } else {
       return htmlIntegrationPointElements.indexOf(
           new Pair(element.namespace, element.name)) >= 0;
@@ -227,16 +227,33 @@ class HTMLParser {
     if (tree.openElements.length == 0) return false;
 
     var node = tree.openElements.last();
+    if (node.namespace == tree.defaultNamespace) return false;
 
-    return !(node.namespace == tree.defaultNamespace ||
-            (isMathMLTextIntegrationPoint(node) &&
-             (type == TokenKind.startTag &&
-              token["name"] != "mglyph" && token["name"] != "malignmark") ||
-             (type == TokenKind.characters || type == TokenKind.spaceCharacters)) ||
-            (node.namespace == Namespaces.mathml &&
-             node.name == "annotation-xml" && token["name"] == "svg") ||
-            (isHTMLIntegrationPoint(node) && (type == TokenKind.startTag ||
-             type == TokenKind.characters || type == TokenKind.spaceCharacters)));
+    if (isMathMLTextIntegrationPoint(node)) {
+      if (type == TokenKind.startTag &&
+          token.name != "mglyph" &&
+          token.name != "malignmark")  {
+        return false;
+      }
+      if (type == TokenKind.characters || type == TokenKind.spaceCharacters) {
+        return false;
+      }
+    }
+
+    if (node.name == "annotation-xml" && type == TokenKind.start &&
+        token.name == "svg") {
+      return false;
+    }
+
+    if (isHTMLIntegrationPoint(node)) {
+      if (type == TokenKind.startTag ||
+          type == TokenKind.characters ||
+          type == TokenKind.spaceCharacters) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   void mainLoop() {
@@ -245,10 +262,10 @@ class HTMLParser {
       var newToken = token;
       int type;
       while (newToken !== null) {
-        type = newToken["type"];
+        type = newToken.type;
 
-        if (type == TokenKind.parseError) {
-          parseError(newToken.data, newToken["datavars"]);
+        if (newToken is ParseErrorToken) {
+          parseError(newToken.data, newToken.datavars);
           newToken = null;
         } else {
           Phase phase_ = phase;
@@ -308,8 +325,8 @@ class HTMLParser {
   }
 
   /** HTML5 specific normalizations to the token stream. */
-  Map normalizeToken(Token token) {
-    if (token["type"] == TokenKind.startTag) {
+  Token normalizeToken(Token token) {
+    if (token is StartTagToken) {
       token.data = makeDict(token.data);
     }
     return token;

@@ -1900,42 +1900,35 @@ class HTMLTokenizer implements Iterator<Token> {
 
   bool cdataSectionState() {
     var data = [];
+    int matchedEnd = 0;
     while (true) {
-      data.add(stream.charsUntil("]"));
-      var charStack = [];
-
-      bool matched = false;
-      for (var expected in const ["]", "]", ">"]) {
-        charStack.add(stream.char());
-        matched = true;
-        if (charStack.last() == EOF) {
-          data.addAll(slice(charStack, 0, -1));
-          break;
-        } else if (charStack.last() != expected) {
-          matched = false;
-          data.addAll(charStack);
-          break;
-        }
-      }
-
-      if (matched) {
+      var ch = stream.char();
+      if (ch == EOF) {
         break;
       }
+      // Deal with null here rather than in the parser
+      if (ch == "\u0000") {
+        tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+        ch = "\uFFFD";
+      }
+      data.add(ch);
+      // TODO(jmesserly): it'd be nice if we had an easier way to match the end,
+      // perhaps with a "peek" API.
+      if (ch == "]" && matchedEnd < 2) {
+        matchedEnd++;
+      } else if (ch == ">" && matchedEnd == 2) {
+        // Remove "]]>" from the end.
+        data.removeLast();
+        data.removeLast();
+        data.removeLast();
+        break;
+      } else {
+        matchedEnd = 0;
+      }
     }
 
-    var dataStr = joinStr(data);
-    // Deal with null here rather than in the parser
-    var nullCount = data.filter((c) => c == "\u0000").length;
-    if (nullCount > 0) {
-      for (int i = 0; i < nullCount; i++) {
-        tokenQueue.addLast({"type": TokenKind.parseError,
-                            "data": "invalid-codepoint"});
-      }
-      dataStr = dataStr.replaceAll("\u0000", "\uFFFD");
-    }
-    if (dataStr.length > 0) {
-      tokenQueue.addLast({"type": TokenKind.characters,
-                          "data": dataStr});
+    if (data.length > 0) {
+      tokenQueue.addLast(new CharactersToken(joinStr(data)));
     }
     state = dataState;
     return true;

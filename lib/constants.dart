@@ -3171,13 +3171,3 @@ final tokenTypes = const {
   "ParseError": TokenKind.parseError,
 };
 
-
-bool isTagTokenType(int tagType) {
-  switch (tagType) {
-    case TokenKind.startTag:
-    case TokenKind.endTag:
-      return true;
-  }
-  return false;
-}
-
