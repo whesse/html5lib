@@ -6,7 +6,7 @@
 // TODO(jmesserly): fix up the const lists. For the bigger ones, we need faster
 // lookup than linear search "indexOf". In the Python code they were frozensets.
 
-final Object EOF = null;
+final String EOF = null;
 
 
 class ReparseException implements Exception {
@@ -3159,15 +3159,5 @@ final Map<String, String> encodings = const {
   'windows1258': 'cp1258',
   'windows936': 'gbk',
   'x-x-big5': 'big5'
-};
-
-final tokenTypes = const {
-  "Doctype": TokenKind.doctype,
-  "Characters": TokenKind.characters,
-  "SpaceCharacters": TokenKind.spaceCharacters,
-  "StartTag": TokenKind.startTag,
-  "EndTag": TokenKind.endTag,
-  "Comment": TokenKind.comment,
-  "ParseError": TokenKind.parseError,
 };
 

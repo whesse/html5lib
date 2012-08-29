@@ -72,11 +72,9 @@ class TokenizerTestParser {
       tokenizer.currentToken = new StartTagToken(_lastStartTag);
     }
 
-    var types = new Map<int, String>();
-    constants.tokenTypes.forEach((k, v) => types[v] = k);
     while (tokenizer.hasNext()) {
       var token = tokenizer.next();
-      switch (token.type) {
+      switch (token.kind) {
         case TokenKind.characters:
           processCharacters(token);
           break;

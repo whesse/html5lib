@@ -1,10 +1,10 @@
 #library('token');
 
 class Token {
-  // TODO(jmesserly): rename to "kind"
-  abstract int get type;
+  abstract int get kind;
 
-  // TODO(jmesserly): remove this?
+  // TODO(jmesserly): it'd be nice to remove this and always use the ".data"
+  // on the particular token type.
   abstract get data;
   abstract set data(value);
 }
@@ -12,7 +12,8 @@ class Token {
 class TagToken extends Token {
   String name;
 
-  // Note: this starts as a List, but becomes a Map of attributes...
+  // TODO(jmesserly): this starts as a List, but becomes a Map of attributes.
+  // Should probably separate these into different named fields.
   var data;
 
   bool selfClosing;
@@ -31,7 +32,7 @@ class StartTagToken extends TagToken {
       this.selfClosingAcknowledged = false, this.namespace])
       : super(name, data, selfClosing);
 
-  int get type => TokenKind.startTag;
+  int get kind => TokenKind.startTag;
 }
 
 class EndTagToken extends TagToken {
@@ -39,7 +40,7 @@ class EndTagToken extends TagToken {
   EndTagToken([String name, data, bool selfClosing = false])
       : super(name, data, selfClosing);
 
-  int get type => TokenKind.endTag;
+  int get kind => TokenKind.endTag;
 }
 
 class StringToken extends Token {
@@ -48,30 +49,30 @@ class StringToken extends Token {
 }
 
 class ParseErrorToken extends StringToken {
-  // TODO(jmesserly): rename this
-  Map datavars;
+  /** Extra information that goes along with the error message. */
+  Map messageParams;
 
-  ParseErrorToken([String data, this.datavars]) : super(data);
+  ParseErrorToken([String data, this.messageParams]) : super(data);
 
-  int get type => TokenKind.parseError;
+  int get kind => TokenKind.parseError;
 }
 
 class CharactersToken extends StringToken {
   CharactersToken([String data]) : super(data);
 
-  int get type => TokenKind.characters;
+  int get kind => TokenKind.characters;
 }
 
 class SpaceCharactersToken extends StringToken {
   SpaceCharactersToken([String data]) : super(data);
 
-  int get type => TokenKind.spaceCharacters;
+  int get kind => TokenKind.spaceCharacters;
 }
 
 class CommentToken extends StringToken {
   CommentToken([String data]) : super(data);
 
-  int get type => TokenKind.comment;
+  int get kind => TokenKind.comment;
 }
 
 class DoctypeToken extends Token {
@@ -83,7 +84,7 @@ class DoctypeToken extends Token {
   DoctypeToken([this.publicId, this.systemId, this.correct = false])
       : name = "";
 
-  int get type => TokenKind.doctype;
+  int get kind => TokenKind.doctype;
 
   // TODO(jmesserly): remove. These are only here because of Token.data
   String get data { throw const UnsupportedOperationException("data"); }

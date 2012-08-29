@@ -24,10 +24,8 @@ Map<String, List<String>> get entitiesByFirstChar {
 
 // TODO(jmesserly): lots of ways to make this faster:
 // - use char codes everywhere instead of 1-char strings
-// - use switch instead of inStr
+// - use switch instead of contains, indexOf
 // - use switch instead of the sequential if tests
-// - use an Token class instead of a map for tokens
-// - avoid tokenTypes lookup
 // - avoid string concat
 
 /**
@@ -131,13 +129,13 @@ class HTMLTokenizer implements Iterator<Token> {
     if (char != null) {
       tokenQueue.addLast(new ParseErrorToken(
           "illegal-codepoint-for-numeric-entity",
-          datavars: {"charAsInt": charAsInt}));
+          messageParams: {"charAsInt": charAsInt}));
     } else if ((0xD800 <= charAsInt && charAsInt <= 0xDFFF)
         || (charAsInt > 0x10FFFF)) {
       char = "\uFFFD";
       tokenQueue.addLast(new ParseErrorToken(
           "illegal-codepoint-for-numeric-entity",
-          datavars: {"charAsInt": charAsInt}));
+          messageParams: {"charAsInt": charAsInt}));
     } else {
       // Should speed up this check somehow (e.g. move the set to a constant)
       if ((0x0001 <= charAsInt && charAsInt <= 0x0008) ||
@@ -155,7 +153,7 @@ class HTMLTokenizer implements Iterator<Token> {
                 0xFFFFF, 0x10FFFE, 0x10FFFF].indexOf(charAsInt) >= 0) {
         tokenQueue.addLast(new ParseErrorToken(
                             "illegal-codepoint-for-numeric-entity",
-                            datavars: {"charAsInt": charAsInt}));
+                            messageParams: {"charAsInt": charAsInt}));
       }
       char = new String.fromCharCodes([charAsInt]);
     }
@@ -468,7 +466,7 @@ class HTMLTokenizer implements Iterator<Token> {
     } else {
       // XXX data can be _'_...
       tokenQueue.addLast(new ParseErrorToken(
-          "expected-closing-tag-but-got-char", datavars: {"data": data}));
+          "expected-closing-tag-but-got-char", messageParams: {"data": data}));
       stream.unget(data);
       state = bogusCommentState;
     }
@@ -1485,7 +1483,7 @@ class HTMLTokenizer implements Iterator<Token> {
       stream.unget(data);
       tokenQueue.addLast(new ParseErrorToken(
           "expected-space-or-right-bracket-in-doctype",
-          datavars: {"data": data}));
+          messageParams: {"data": data}));
       currentDoctypeToken.correct = false;
       state = bogusDoctypeState;
     }

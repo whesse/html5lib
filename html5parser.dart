@@ -284,12 +284,12 @@ class HTMLParser {
       var newToken = token;
       int type;
       while (newToken !== null) {
-        type = newToken.type;
+        type = newToken.kind;
 
         // Note: avoid "is" test here, see http://dartbug.com/4795
         if (type == TokenKind.parseError) {
           ParseErrorToken error = newToken;
-          parseError(error.data, error.datavars);
+          parseError(error.data, error.messageParams);
           newToken = null;
         } else {
           Phase phase_ = phase;
@@ -357,7 +357,7 @@ class HTMLParser {
     return token;
   }
 
-  void adjustMathMLAttributes(Token token) {
+  void adjustMathMLAttributes(StartTagToken token) {
     var orig = token.data.remove("definitionurl");
     if (orig != null) {
       token.data["definitionURL"] = orig;
