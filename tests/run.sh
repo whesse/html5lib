@@ -8,5 +8,7 @@ set -e
 
 # TODO(sigmund): replace with a real test runner
 for test in tests/*_test.dart; do
-  dart --enable-asserts --enable-type-checks --package-root=packages/ $test
+  # TODO(jmesserly): removed --enable-type-checks to work around VM bug.
+  # http://dartbug.com/4797
+  dart --enable-asserts --package-root=packages/ $test
 done
