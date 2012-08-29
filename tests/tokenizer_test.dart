@@ -7,6 +7,7 @@
 #import('package:unittest/unittest.dart');
 #import('../lib/char_encodings.dart');
 #import('../lib/constants.dart', prefix: 'constants');
+#import('../lib/token.dart');
 #import('../lib/utils.dart');
 #import('../tokenizer.dart');
 #import('support.dart');
@@ -65,48 +66,56 @@ class TokenizerTestParser {
     // Note: we can't get a closure of the state method. However, we can
     // create a new closure to invoke it via mirrors.
     var mtok = reflect(tokenizer);
-    // TODO(jmesserly): mirrors are causing us to lose stack traces?
-    // If you hit a bug and aren't getting a stack trace, consider adding
-    // debug code like this to avoid the mirror invocation:
-    //     if (_state == 'dataState') {
-    //        tokenizer.state = tokenizer.dataState;
-    //     } else {
-    // Replace 'dataState' with the appropriate state name.
     tokenizer.state = () => mtok.invoke(_state, const []).value.reflectee;
 
     if (_lastStartTag != null) {
-      tokenizer.currentToken = {"type": "startTag", "name": _lastStartTag};
+      tokenizer.currentToken = new StartTagToken(_lastStartTag);
     }
 
     var types = new Map<int, String>();
     constants.tokenTypes.forEach((k, v) => types[v] = k);
     while (tokenizer.hasNext()) {
       var token = tokenizer.next();
-      reflect(this).invoke('process${types[token["type"]]}', [reflect(token)]);
+      switch (token.type) {
+        case TokenKind.characters:
+          processCharacters(token);
+          break;
+        case TokenKind.spaceCharacters:
+          processSpaceCharacters(token);
+          break;
+        case TokenKind.startTag:
+          processStartTag(token);
+          break;
+        case TokenKind.endTag:
+          processEndTag(token);
+          break;
+        case TokenKind.comment:
+          processComment(token);
+          break;
+        case TokenKind.doctype:
+          processDoctype(token);
+          break;
+        case TokenKind.parseError:
+          processParseError(token);
+          break;
+      }
     }
 
     return outputTokens;
   }
 
-  void processDoctype(Token token) {
-    outputTokens.add(["DOCTYPE", token["name"], token["publicId"],
-        token["systemId"], token["correct"]]);
+  void processDoctype(DoctypeToken token) {
+    outputTokens.add(["DOCTYPE", token.name, token.publicId,
+        token.systemId, token.correct]);
   }
 
-  void processStartTag(Token token) {
-    outputTokens.add(["StartTag", token["name"],
+  void processStartTag(StartTagToken token) {
+    outputTokens.add(["StartTag", token.name,
         makeDict(token.data), token.selfClosing]);
   }
 
-  void processEmptyTag(Token token) {
-    if (constants.voidElements.indexOf(token["name"]) >= 0) {
-      outputTokens.add("ParseError");
-    }
-    outputTokens.add(["StartTag", token["name"], makeDict(token.data)]);
-  }
-
-  void processEndTag(Token token) {
-    outputTokens.add(["EndTag", token["name"], token.selfClosing]);
+  void processEndTag(EndTagToken token) {
+    outputTokens.add(["EndTag", token.name, token.selfClosing]);
   }
 
   void processComment(Token token) {
@@ -133,7 +142,7 @@ class TokenizerTestParser {
 }
 
 List concatenateCharacterTokens(List tokens) {
-  var outputTokens = [];
+  var outputTokens = <List>[];
   for (var token in tokens) {
     if (token.indexOf("ParseError") == -1 && token[0] == "Character") {
       if (outputTokens.length > 0 &&

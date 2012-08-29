@@ -6,9 +6,10 @@ class Token {
 
   // TODO(jmesserly): remove this?
   abstract get data;
+  abstract set data(value);
 }
 
-class TagToken {
+class TagToken extends Token {
   String name;
 
   // Note: this starts as a List, but becomes a Map of attributes...
@@ -16,7 +17,8 @@ class TagToken {
 
   bool selfClosing;
 
-  TagToken(this.name, this.data, this.selfClosing);
+  TagToken(this.name, data, this.selfClosing)
+      : data = data == null ? [] : data;
 }
 
 class StartTagToken extends TagToken {
@@ -75,11 +77,17 @@ class CommentToken extends StringToken {
 class DoctypeToken extends Token {
   String publicId;
   String systemId;
+  String name;
   bool correct;
 
-  String get name => "";
+  DoctypeToken([this.publicId, this.systemId, this.correct = false])
+      : name = "";
 
   int get type => TokenKind.doctype;
+
+  // TODO(jmesserly): remove. These are only here because of Token.data
+  String get data { throw const UnsupportedOperationException("data"); }
+  set data(value) { throw const UnsupportedOperationException("data"); }
 }
 
 
