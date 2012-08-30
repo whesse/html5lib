@@ -4,11 +4,9 @@
  */
 #library('simpletree');
 
-#import('base.dart', prefix: 'base');
 #import('../lib/constants.dart');
 #import('../lib/utils.dart');
-
-final Marker = base.Marker;
+#import('base.dart');
 
 // TODO(jmesserly): I added this class to replace the tuple usage in Python.
 // How does this fit in to dart:html?
@@ -48,24 +46,9 @@ class AttributeName implements Hashable, Comparable {
   }
 }
 
-/**
- * Note: this is meant to match:
- * <http://docs.python.org/library/xml.sax.utils.html#xml.sax.saxutils.escape>
- * So we only escape `&` `<` and `>`, unlike Dart's htmlEscape function.
- */
-String _escape(String text, [Map extraReplace]) {
-  // TODO(efortuna): A more efficient implementation.
-  text = text.replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;");
-  if (extraReplace != null) {
-    extraReplace.forEach((k, v) { text = text.replaceAll(k, v); });
-  }
-  return text;
-}
-
-/** Really basic implementation of a DOM-core like thing. */
-class Node extends base.Node<Node> {
+// TODO(jmesserly): move code away from $dom methods
+/** Really basic implementation of a DOM-core like Node. */
+abstract class Node {
   static const int ATTRIBUTE_NODE = 2;
   static const int CDATA_SECTION_NODE = 4;
   static const int COMMENT_NODE = 8;
@@ -79,7 +62,35 @@ class Node extends base.Node<Node> {
   static const int PROCESSING_INSTRUCTION_NODE = 7;
   static const int TEXT_NODE = 3;
 
-  Node(name) : super(name);
+  /** The tag name associated with the node. */
+  final String name;
+
+  /** The parent of the current node (or null for the document node). */
+  Node parent;
+
+  /** A map holding name, value pairs for attributes of the node. */
+  Map attributes;
+
+  /**
+   * A list of child nodes of the current node. This must
+   * include all elements but not necessarily other node types.
+   */
+  final List<Node> nodes;
+
+  Node(this.name) : attributes = {}, nodes = <Node>[];
+
+  /**
+   * Return a shallow copy of the current node i.e. a node with the same
+   * name and attributes but with no parent or child nodes.
+   */
+  abstract Node clone();
+
+  String get namespace => null;
+
+  // TODO(jmesserly): do we need this here?
+  /** The value of the current node (applies to text nodes and comments). */
+  String get value => null;
+
 
   // TODO(jmesserly): this is a workaround for http://dartbug.com/4754
   int get $dom_nodeType => nodeType;
@@ -99,6 +110,9 @@ class Node extends base.Node<Node> {
 
   String toString() => name;
 
+  /**
+   * Insert [node] as a child of the current node
+   */
   void $dom_appendChild(Node node) {
     if (node is TextNode && nodes.length > 0 &&
         nodes.last() is TextNode) {
@@ -110,6 +124,10 @@ class Node extends base.Node<Node> {
     node.parent = this;
   }
 
+  /**
+   * Insert [data] as text in the current node, positioned before the
+   * start of node [refNode] or to the end of the node's text.
+   */
   void insertText(String data, [Node refNode]) {
     if (refNode == null) {
       $dom_appendChild(new TextNode(data));
@@ -118,6 +136,11 @@ class Node extends base.Node<Node> {
     }
   }
 
+  /**
+   * Insert [node] as a child of the current node, before [refNode] in the
+   * list of child nodes. Raises [UnsupportedOperationException] if [refNode]
+   * is not a child of the current node.
+   */
   void insertBefore(Node node, Node refNode) {
     int index = nodes.indexOf(refNode);
     if (node is TextNode && index > 0 &&
@@ -130,17 +153,34 @@ class Node extends base.Node<Node> {
     node.parent = this;
   }
 
+  /**
+   * Remove [node] from the children of the current node
+   */
   void $dom_removeChild(Node node) {
     removeFromList(nodes, node);
     node.parent = null;
   }
 
+  // TODO(jmesserly): should this be a property?
   /** Return true if the node has children or text. */
   bool hasContent() => nodes.length > 0;
 
   Pair<String, String> get nameTuple {
     var ns = namespace != null ? namespace : Namespaces.html;
     return new Pair(ns, name);
+  }
+
+  /**
+   * Move all the children of the current node to [newParent].
+   * This is needed so that trees that don't store text as nodes move the
+   * text in the correct way.
+   */
+  void reparentChildren(Node newParent) {
+    //XXX - should this method be made more general?
+    for (var child in nodes) {
+      newParent.$dom_appendChild(child);
+    }
+    nodes.clear();
   }
 }
 
@@ -197,7 +237,8 @@ class TextNode extends Node {
 
   String toString() => '"$value"';
 
-  StringBuffer _addOuterHtml(StringBuffer str) => str.add(_escape(value));
+  StringBuffer _addOuterHtml(StringBuffer str) =>
+      str.add(htmlEscapeMinimal(value));
 
   TextNode clone() => new TextNode(value);
 }
@@ -218,7 +259,7 @@ class Element extends Node {
     str.add('<$name');
     if (attributes.length > 0) {
       attributes.forEach((key, v) {
-        v = _escape(v, {'"': "&quot;"});
+        v = htmlEscapeMinimal(v, {'"': "&quot;"});
         str.add(' $key="$v"');
       });
     }
@@ -249,7 +290,7 @@ class CommentNode extends Node {
   CommentNode clone() => new CommentNode(data);
 }
 
-class TreeBuilder extends base.TreeBuilder<
+class TreeBuilder extends BaseTreeBuilder<
     Document, Element, CommentNode, DocumentType, DocumentFragment> {
 
   TreeBuilder(bool namespaceHTMLElements) : super(namespaceHTMLElements);
@@ -290,11 +331,13 @@ class TreeVisitor {
   visitNodeFallback(Node node) => visitChildren(node);
 
   visitDocument(Document node) => visitNodeFallback(node);
-  visitDocumentFragment(DocumentFragment node) => visitNodeFallback(node);
   visitDocumentType(DocumentType node) => visitNodeFallback(node);
   visitTextNode(TextNode node) => visitNodeFallback(node);
   visitElement(Element node) => visitNodeFallback(node);
   visitCommentNode(CommentNode node) => visitNodeFallback(node);
+
+  // Note: visits document by default because DocumentFragment is a Document.
+  visitDocumentFragment(DocumentFragment node) => visitDocument(node);
 }
 
 /**
@@ -335,7 +378,7 @@ class CodeMarkupVisitor extends TreeVisitor {
     _str.add('&lt;<code class="markup element-name">${node.name}</code>');
     if (node.attributes.length > 0) {
       node.attributes.forEach((key, v) {
-        v = _escape(v, {'"': "&quot;"});
+        v = htmlEscapeMinimal(v, {'"': "&quot;"});
         _str.add(' <code class="markup attribute-name">$key</code>'
             '=<code class="markup attribute-value">"$v"</code>');
       });
@@ -351,7 +394,7 @@ class CodeMarkupVisitor extends TreeVisitor {
   }
 
   visitCommentNode(CommentNode node) {
-    var data = _escape(node.data);
+    var data = htmlEscapeMinimal(node.data);
     _str.add('<code class="markup comment">&lt;!--${data}--></code>');
   }
 }

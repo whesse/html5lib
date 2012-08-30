@@ -2,6 +2,7 @@
 
 #import('dart:math');
 #import('package:logging/logging.dart');
+#import('treebuilders/base.dart'); // for Marker
 #import('treebuilders/simpletree.dart');
 #import('lib/constants.dart');
 #import('lib/encoding_parser.dart');
@@ -15,7 +16,7 @@
 // like to find a good dependency-injection pattern for Dart rather than
 // copy the Python API.
 // TODO(jmesserly): Also some of the HTMLParser APIs are messed up to avoid
-// editor shadowing warnings :\
+// editor shadowing warnings :\. Look for trailing underscores.
 /**
  * Parse an html5 [doc]ument that is a [String], [RandomAccessFile] or
  * [List<int>] of bytes into a tree.
