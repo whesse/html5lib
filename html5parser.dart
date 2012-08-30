@@ -2424,7 +2424,7 @@ class InTableBodyPhase extends Phase {
     }
   }
 
-  Token endTagTable(EndTagToken token) {
+  Token endTagTable(TagToken token) {
     // XXX AT Any ideas on how to share this with endTagTable?
     if (tree.elementInScope("tbody", variant: "table") ||
         tree.elementInScope("thead", variant: "table") ||
