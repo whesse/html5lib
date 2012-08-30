@@ -303,7 +303,7 @@ class TreeVisitor {
  * markup. See also [CodeMarkupVisitor].
  */
 htmlToCodeMarkup(Node node) {
-  return new CodeMarkupVisitor()..visit(node).toString();
+  return (new CodeMarkupVisitor()..visit(node)).toString();
 }
 
 /**

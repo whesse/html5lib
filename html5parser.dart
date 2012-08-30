@@ -1823,7 +1823,7 @@ class InBodyPhase extends Phase {
       // table, tbody, tfoot, thead, or tr we need to foster parent the
       // lastNode
       if (lastNode.parent != null) {
-        lastNode.parent.removeChild(lastNode);
+        lastNode.parent.$dom_removeChild(lastNode);
       }
 
       if (const ["table", "tbody", "tfoot", "thead", "tr"].indexOf(

@@ -60,8 +60,6 @@ Function get convertExpected => convert(2);
 // format (see convert/convertExpected above).
 // Also we should probably split the file on empty lines to find the test cases,
 // rather than parsing line by line and looking for a leading #.
-// Lastly, the "printTree" function for tests should be split out of the tree
-// nodes themselves.
 class TestData implements Iterable<Map> {
   final String _text;
   final String newTestHeading;
@@ -129,14 +127,14 @@ class TestData implements Iterable<Map> {
  * Serialize the [document] into the html5 test data format.
  */
 testSerializer(Document document) {
-  return new TestSerializer()..visit(document).toString();
+  return (new TestSerializer()..visit(document)).toString();
 }
 
 /** Serializes the DOM into test format. See [testSerializer]. */
 class TestSerializer extends TreeVisitor {
   final StringBuffer _str;
-  int _indent;
-  String _spaces;
+  int _indent = 0;
+  String _spaces = '';
 
   TestSerializer() : _str = new StringBuffer();
 
