@@ -205,7 +205,7 @@ abstract class BaseTreeBuilder<
       var clone = entry.clone(); // Mainly to get a new copy of the attributes
 
       // Step 9
-      var element = insertElement(new StartTagToken(clone.name,
+      var element = insertElement(new StartTagToken(clone.tagName,
           namespace: clone.namespace, data: clone.attributes));
 
       // Step 10
@@ -290,7 +290,7 @@ abstract class BaseTreeBuilder<
   Element insertElementTable(token) {
     /** Create an element and insert it into the tree */
     var element = createElement(token);
-    if (tableInsertModeElements.indexOf(openElements.last().name) == -1) {
+    if (tableInsertModeElements.indexOf(openElements.last().tagName) == -1) {
       return insertElementNormal(token);
     } else {
       // We should be in the InTable mode. This means we want to do
@@ -311,7 +311,7 @@ abstract class BaseTreeBuilder<
     if (parent == null) parent = openElements.last();
 
     if (!insertFromTable || insertFromTable &&
-        tableInsertModeElements.indexOf(openElements.last().name) == -1) {
+        tableInsertModeElements.indexOf(openElements.last().tagName) == -1) {
       parent.insertText(data);
     } else {
       // We should be in the InTable mode. This means we want to do
@@ -354,7 +354,7 @@ abstract class BaseTreeBuilder<
   }
 
   void generateImpliedEndTags([String exclude]) {
-    var name = openElements.last().name;
+    var name = openElements.last().tagName;
     // XXX td, th and tr are not actually needed
     if (name != exclude && const ["dd", "dt", "li", "option", "optgroup", "p",
         "rp", "rt"].indexOf(name) >= 0) {

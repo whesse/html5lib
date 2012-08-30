@@ -63,7 +63,7 @@ abstract class Node {
   static const int TEXT_NODE = 3;
 
   /** The tag name associated with the node. */
-  final String name;
+  final String tagName;
 
   /** The parent of the current node (or null for the document node). */
   Node parent;
@@ -79,7 +79,7 @@ abstract class Node {
    */
   final List<Node> nodes;
 
-  Node(this.name) : attributes = {}, nodes = <Node>[];
+  Node(this.tagName) : attributes = {}, nodes = <Node>[];
 
   /**
    * Return a shallow copy of the current node i.e. a node with the same
@@ -110,7 +110,7 @@ abstract class Node {
     return str;
   }
 
-  String toString() => name;
+  String toString() => tagName;
 
   /**
    * Insert [node] as a child of the current node
@@ -169,7 +169,7 @@ abstract class Node {
 
   Pair<String, String> get nameTuple {
     var ns = namespace != null ? namespace : Namespaces.html;
-    return new Pair(ns, name);
+    return new Pair(ns, tagName);
   }
 
   /**
@@ -218,16 +218,16 @@ class DocumentType extends Node {
     if (publicId != null || systemId != null) {
       var pid = publicId != null ? publicId : '';
       var sid = systemId != null ? systemId : '';
-      return '<!DOCTYPE $name "$pid" "$sid">';
+      return '<!DOCTYPE $tagName "$pid" "$sid">';
     } else {
-      return '<!DOCTYPE $name>';
+      return '<!DOCTYPE $tagName>';
     }
   }
 
 
   StringBuffer _addOuterHtml(StringBuffer str) => str.add(toString());
 
-  DocumentType clone() => new DocumentType(name, publicId, systemId);
+  DocumentType clone() => new DocumentType(tagName, publicId, systemId);
 }
 
 class TextNode extends Node {
@@ -253,12 +253,12 @@ class Element extends Node {
   int get nodeType => Node.ELEMENT_NODE;
 
   String toString() {
-    if (namespace == null) return "<$name>";
-    return "<${Namespaces.getPrefix(namespace)} $name>";
+    if (namespace == null) return "<$tagName>";
+    return "<${Namespaces.getPrefix(namespace)} $tagName>";
   }
 
   StringBuffer _addOuterHtml(StringBuffer str) {
-    str.add('<$name');
+    str.add('<$tagName');
     if (attributes.length > 0) {
       attributes.forEach((key, v) {
         v = htmlEscapeMinimal(v, {'"': "&quot;"});
@@ -268,14 +268,14 @@ class Element extends Node {
     if (nodes.length > 0) {
       str.add('>');
       _addInnerHtml(str);
-      str.add('</$name>');
+      str.add('</$tagName>');
     } else {
       str.add('/>');
     }
   }
 
   Element clone() =>
-      new Element(name, namespace)..attributes = new Map.from(attributes);
+      new Element(tagName, namespace)..attributes = new Map.from(attributes);
 }
 
 class CommentNode extends Node {
@@ -369,7 +369,7 @@ class CodeMarkupVisitor extends TreeVisitor {
   }
 
   visitDocumentType(DocumentType node) {
-    _str.add('<code class="markup doctype">&lt;!DOCTYPE ${node.name}></code>');
+    _str.add('<code class="markup doctype">&lt;!DOCTYPE ${node.tagName}></code>');
   }
 
   visitTextNode(TextNode node) {
@@ -377,7 +377,7 @@ class CodeMarkupVisitor extends TreeVisitor {
   }
 
   visitElement(Element node) {
-    _str.add('&lt;<code class="markup element-name">${node.name}</code>');
+    _str.add('&lt;<code class="markup element-name">${node.tagName}</code>');
     if (node.attributes.length > 0) {
       node.attributes.forEach((key, v) {
         v = htmlEscapeMinimal(v, {'"': "&quot;"});
@@ -388,11 +388,11 @@ class CodeMarkupVisitor extends TreeVisitor {
     if (node.nodes.length > 0) {
       _str.add(">");
       visitChildren(node);
-    } else if (voidElements.indexOf(node.name) >= 0) {
+    } else if (voidElements.indexOf(node.tagName) >= 0) {
       _str.add(">");
       return;
     }
-    _str.add('&lt;/<code class="markup element-name">${node.name}</code>>');
+    _str.add('&lt;/<code class="markup element-name">${node.tagName}</code>>');
   }
 
   visitCommentNode(CommentNode node) {
