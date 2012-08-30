@@ -88,12 +88,16 @@ abstract class Node {
    */
   abstract Node clone();
 
+  String get id {
+    var result = attributes['id'];
+    return result != null ? result : '';
+  }
+
   String get namespace => null;
 
   // TODO(jmesserly): do we need this here?
   /** The value of the current node (applies to text nodes and comments). */
   String get value => null;
-
 
   // TODO(jmesserly): this is a workaround for http://dartbug.com/4754
   int get $dom_nodeType => nodeType;
