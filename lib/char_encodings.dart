@@ -1,9 +1,15 @@
 /** Decodes bytes using the correct name. See [decodeBytes]. */
-#library('codecs');
+#library('char_encodings');
 
 #import('dart:utf');
 #import('dart:io'); // for DecoderException
 
+// TODO(jmesserly): this function is conspicuously absent from dart:utf.
+/**
+ * Returns true if the [bytes] starts with a UTF-8 byte order mark.
+ * Since UTF-8 doesn't have byte order, it's somewhat of a misnomer, but it is
+ * used in HTML to detect the UTF-
+ */
 bool hasUtf8Bom(List<int> bytes, [int offset = 0, int length]) {
   int end = length != null ? offset + length : bytes.length;
   return (offset + 3) <= end &&
@@ -13,9 +19,9 @@ bool hasUtf8Bom(List<int> bytes, [int offset = 0, int length]) {
 }
 
 // TODO(jmesserly): it's unfortunate that this has to be one-shot on the entire
-// file, but dart:utf does not expoes stream-based decoders yet.
+// file, but dart:utf does not expose stream-based decoders yet.
 /**
- * Decodes the [bytes] with the provided [encoding] and returns an interator for
+ * Decodes the [bytes] with the provided [encoding] and returns an iterable for
  * the codepoints. Supports the major unicode encodings as well as ascii and
  * and windows-1252 encodings.
  */

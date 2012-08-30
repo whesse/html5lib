@@ -1,13 +1,16 @@
 #library('tokenizer');
 
 #import('dart:math');
-#import('constants.dart');
-#import('inputstream.dart');
-#import('utils.dart');
+#import('lib/constants.dart');
+#import('lib/inputstream.dart');
+#import('lib/token.dart');
+#import('lib/utils.dart');
 #import('html5parser.dart', prefix: 'html5parser');
 
 // Group entities by their first character, for faster lookups
 
+// TODO(jmesserly): we could use a better data structure here like a trie, if
+// we had it implemented in Dart.
 Map<String, List<String>> _entitiesByFirstChar;
 Map<String, List<String>> get entitiesByFirstChar {
   if (_entitiesByFirstChar == null) {
@@ -21,16 +24,14 @@ Map<String, List<String>> get entitiesByFirstChar {
 
 // TODO(jmesserly): lots of ways to make this faster:
 // - use char codes everywhere instead of 1-char strings
-// - use switch instead of inStr
+// - use switch instead of contains, indexOf
 // - use switch instead of the sequential if tests
-// - use an Token class instead of a map for tokens
-// - avoid tokenTypes lookup
 // - avoid string concat
 
 /**
  * This class takes care of tokenizing HTML.
  */
-class HTMLTokenizer implements Iterator<Map> {
+class HTMLTokenizer implements Iterator<Token> {
   // TODO(jmesserly): a lot of these could be made private
 
   final HTMLInputStream stream;
@@ -41,10 +42,10 @@ class HTMLTokenizer implements Iterator<Map> {
 
   html5parser.HTMLParser parser;
 
-  final Queue tokenQueue;
+  final Queue<Token> tokenQueue;
 
   /** Holds the token that is currently being processed. */
-  Map currentToken;
+  Token currentToken;
 
   /**
    * Holds a reference to the method to be invoked for the next parser state.
@@ -62,7 +63,10 @@ class HTMLTokenizer implements Iterator<Map> {
     state = dataState;
   }
 
-  get lastData => currentToken["data"].last();
+  get lastData => currentToken.data.last();
+
+  TagToken get currentTagToken => currentToken;
+  DoctypeToken get currentDoctypeToken => currentToken;
 
   bool hasNext() {
     if (stream.errors.length > 0) return true;
@@ -82,11 +86,10 @@ class HTMLTokenizer implements Iterator<Map> {
    * to return we yield the token which pauses processing until the next token
    * is requested.
    */
-   Map next() {
+   Token next() {
     if (hasNext()) {
       if (stream.errors.length > 0) {
-        return {"type": ParseErrorToken,
-                "data": removeAt(stream.errors, 0)};
+        return new ParseErrorToken(removeAt(stream.errors, 0));
       }
       return tokenQueue.removeFirst();
     } else {
@@ -97,7 +100,7 @@ class HTMLTokenizer implements Iterator<Map> {
   /**
    * This function returns either U+FFFD or the character based on the
    * decimal or hexadecimal representation. It also discards ";" if present.
-   * If not present tokenQueue.addLast({"type": ParseErrorToken});
+   * If not present tokenQueue.addLast({"type": TokenKind.parseError});
    * is invoked.
    */
   String consumeNumberEntity(bool isHex) {
@@ -124,15 +127,15 @@ class HTMLTokenizer implements Iterator<Map> {
     // Certain characters get replaced with others
     var char = replacementCharacters[charAsInt];
     if (char != null) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
+      tokenQueue.addLast(new ParseErrorToken(
           "illegal-codepoint-for-numeric-entity",
-          "datavars": {"charAsInt": charAsInt}});
+          messageParams: {"charAsInt": charAsInt}));
     } else if ((0xD800 <= charAsInt && charAsInt <= 0xDFFF)
         || (charAsInt > 0x10FFFF)) {
       char = "\uFFFD";
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
+      tokenQueue.addLast(new ParseErrorToken(
           "illegal-codepoint-for-numeric-entity",
-          "datavars": {"charAsInt": charAsInt}});
+          messageParams: {"charAsInt": charAsInt}));
     } else {
       // Should speed up this check somehow (e.g. move the set to a constant)
       if ((0x0001 <= charAsInt && charAsInt <= 0x0008) ||
@@ -148,9 +151,9 @@ class HTMLTokenizer implements Iterator<Map> {
                 0xBFFFF, 0xCFFFE, 0xCFFFF, 0xDFFFE,
                 0xDFFFF, 0xEFFFE, 0xEFFFF, 0xFFFFE,
                 0xFFFFF, 0x10FFFE, 0x10FFFF].indexOf(charAsInt) >= 0) {
-        tokenQueue.addLast({"type": ParseErrorToken,
-                            "data": "illegal-codepoint-for-numeric-entity",
-                            "datavars": {"charAsInt": charAsInt}});
+        tokenQueue.addLast(new ParseErrorToken(
+                            "illegal-codepoint-for-numeric-entity",
+                            messageParams: {"charAsInt": charAsInt}));
       }
       char = new String.fromCharCodes([charAsInt]);
     }
@@ -158,8 +161,8 @@ class HTMLTokenizer implements Iterator<Map> {
     // Discard the ; if present. Otherwise, put it back on the queue and
     // invoke parseError on parser.
     if (c != ";") {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "numeric-entity-without-semicolon"});
+      tokenQueue.addLast(new ParseErrorToken(
+          "numeric-entity-without-semicolon"));
       stream.unget(c);
     }
     return char;
@@ -170,7 +173,7 @@ class HTMLTokenizer implements Iterator<Map> {
     var output = "&";
 
     var charStack = [stream.char()];
-    if (isWhitespace(charStack[0]) || inStr(charStack[0], '<&')
+    if (isWhitespace(charStack[0]) || charStack[0] == '<' || charStack[0] == '&'
         || charStack[0] == EOF || allowedChar == charStack[0]) {
       stream.unget(charStack[0]);
     } else if (charStack[0] == "#") {
@@ -190,8 +193,7 @@ class HTMLTokenizer implements Iterator<Map> {
         output = consumeNumberEntity(hex);
       } else {
         // No digits found
-        tokenQueue.addLast({"type": ParseErrorToken,
-            "data": "expected-numeric-entity"});
+        tokenQueue.addLast(new ParseErrorToken("expected-numeric-entity"));
         stream.unget(charStack.removeLast());
         output = "&${joinStr(charStack)}";
       }
@@ -217,7 +219,7 @@ class HTMLTokenizer implements Iterator<Map> {
 
       // At this point we have a string that starts with some characters
       // that may match an entity
-      var entityName = null;
+      String entityName = null;
 
       // Try to find the longest entity the string will match to take care
       // of &noti for instance.
@@ -234,8 +236,8 @@ class HTMLTokenizer implements Iterator<Map> {
       if (entityName !== null) {
         var lastChar = entityName[entityName.length - 1];
         if (lastChar != ";") {
-          tokenQueue.addLast({"type": ParseErrorToken, "data":
-              "named-entity-without-semicolon"});
+          tokenQueue.addLast(new ParseErrorToken(
+              "named-entity-without-semicolon"));
         }
         if (lastChar != ";" && fromAttribute &&
             (isLetterOrDigit(charStack[entityLen]) ||
@@ -248,8 +250,7 @@ class HTMLTokenizer implements Iterator<Map> {
           output = '${output}${joinStr(slice(charStack, entityLen))}';
         }
       } else {
-        tokenQueue.addLast({"type": ParseErrorToken, "data":
-            "expected-named-entity"});
+        tokenQueue.addLast(new ParseErrorToken("expected-named-entity"));
         stream.unget(charStack.removeLast());
         output = "&${joinStr(charStack)}";
       }
@@ -257,13 +258,13 @@ class HTMLTokenizer implements Iterator<Map> {
     if (fromAttribute) {
       lastData[1] = '${lastData[1]}${output}';
     } else {
-      var tokenType;
+      var token;
       if (isWhitespace(output)) {
-        tokenType = "SpaceCharacters";
+        token = new SpaceCharactersToken(output);
       } else {
-        tokenType = "Characters";
+        token = new CharactersToken(output);
       }
-      tokenQueue.addLast({"type": tokenTypes[tokenType], "data": output});
+      tokenQueue.addLast(token);
     }
   }
 
@@ -280,18 +281,17 @@ class HTMLTokenizer implements Iterator<Map> {
   void emitCurrentToken() {
     var token = currentToken;
     // Add token to the queue to be yielded
-    if (isTagTokenType(token["type"])) {
+    if (token is TagToken) {
       if (lowercaseElementName) {
-        token["name"] = asciiUpper2Lower(token["name"]);
+        token.name = asciiUpper2Lower(token.name);
       }
-      if (token["type"] == EndTagToken) {
-        if (token["data"].length > 0) {
-          tokenQueue.addLast({"type":ParseErrorToken,
-                              "data":"attributes-in-end-tag"});
+      if (token is EndTagToken) {
+        if (token.data.length > 0) {
+          tokenQueue.addLast(new ParseErrorToken("attributes-in-end-tag"));
         }
-        if (token["selfClosing"]) {
-          tokenQueue.addLast({"type":ParseErrorToken,
-                              "data":"this-closing-flag-on-end-tag"});
+        if (token.selfClosing) {
+          tokenQueue.addLast(new ParseErrorToken(
+              "this-closing-flag-on-end-tag"));
         }
       }
     }
@@ -309,10 +309,8 @@ class HTMLTokenizer implements Iterator<Map> {
     } else if (data == "<") {
       state = tagOpenState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                          "data":"invalid-codepoint"});
-      tokenQueue.addLast({"type": CharactersToken,
-                          "data": "\u0000"});
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      tokenQueue.addLast(new CharactersToken("\u0000"));
     } else if (data === EOF) {
       // Tokenization ends.
       return false;
@@ -320,15 +318,14 @@ class HTMLTokenizer implements Iterator<Map> {
       // Directly after emitting a token you switch back to the "data
       // state". At that point spaceCharacters are important so they are
       // emitted separately.
-      tokenQueue.addLast({"type": SpaceCharactersToken, "data":
-          '${data}${stream.charsUntil(spaceCharacters, true)}'});
+      tokenQueue.addLast(new SpaceCharactersToken(
+          '${data}${stream.charsUntil(spaceCharacters, true)}'));
       // No need to update lastFourChars here, since the first space will
       // have already been appended to lastFourChars and will have broken
       // any <!-- or --> sequences
     } else {
       var chars = stream.charsUntil("&<\u0000");
-      tokenQueue.addLast({"type": CharactersToken, "data":
-          '${data}${chars}'});
+      tokenQueue.addLast(new CharactersToken('${data}${chars}'));
     }
     return true;
   }
@@ -349,20 +346,17 @@ class HTMLTokenizer implements Iterator<Map> {
       // Tokenization ends.
       return false;
     } else if (data == "\u0000") {
-        tokenQueue.addLast({"type": ParseErrorToken,
-                            "data": "invalid-codepoint"});
-        tokenQueue.addLast({"type": CharactersToken,
-                            "data": "\uFFFD"});
+        tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+        tokenQueue.addLast(new CharactersToken("\uFFFD"));
     } else if (isWhitespace(data)) {
       // Directly after emitting a token you switch back to the "data
       // state". At that point spaceCharacters are important so they are
       // emitted separately.
-      tokenQueue.addLast({"type": SpaceCharactersToken, "data":
-          '${data}${stream.charsUntil(spaceCharacters, true)}'});
+      tokenQueue.addLast(new SpaceCharactersToken(
+          '${data}${stream.charsUntil(spaceCharacters, true)}'));
     } else {
       var chars = stream.charsUntil("&<");
-      tokenQueue.addLast({"type": CharactersToken, "data":
-          '${data}${chars}'});
+      tokenQueue.addLast(new CharactersToken('${data}${chars}'));
     }
     return true;
   }
@@ -378,17 +372,14 @@ class HTMLTokenizer implements Iterator<Map> {
     if (data == "<") {
       state = rawtextLessThanSignState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                          "data": "invalid-codepoint"});
-      tokenQueue.addLast({"type": CharactersToken,
-                          "data": "\uFFFD"});
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      tokenQueue.addLast(new CharactersToken("\uFFFD"));
     } else if (data == EOF) {
       // Tokenization ends.
       return false;
     } else {
       var chars = stream.charsUntil("<\u0000");
-      tokenQueue.addLast({"type": CharactersToken, "data":
-          '${data}${chars}'});
+      tokenQueue.addLast(new CharactersToken("${data}${chars}"));
     }
     return true;
   }
@@ -398,17 +389,14 @@ class HTMLTokenizer implements Iterator<Map> {
     if (data == "<") {
       state = scriptDataLessThanSignState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                              "data": "invalid-codepoint"});
-      tokenQueue.addLast({"type": CharactersToken,
-                              "data": "\uFFFD"});
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      tokenQueue.addLast(new CharactersToken("\uFFFD"));
     } else if (data == EOF) {
       // Tokenization ends.
       return false;
     } else {
       var chars = stream.charsUntil("<\u0000");
-      tokenQueue.addLast({"type": CharactersToken, "data":
-        '${data}${chars}'});
+      tokenQueue.addLast(new CharactersToken("${data}${chars}"));
     }
     return true;
   }
@@ -419,13 +407,11 @@ class HTMLTokenizer implements Iterator<Map> {
       // Tokenization ends.
       return false;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                  "data": "invalid-codepoint"});
-      tokenQueue.addLast({"type": CharactersToken,
-                  "data": "\uFFFD"});
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      tokenQueue.addLast(new CharactersToken("\uFFFD"));
     } else {
-      tokenQueue.addLast({"type": CharactersToken, "data":
-                          '${data}${stream.charsUntil("\u0000")}'});
+      tokenQueue.addLast(new CharactersToken(
+          '${data}${stream.charsUntil("\u0000")}'));
     }
     return true;
   }
@@ -437,30 +423,26 @@ class HTMLTokenizer implements Iterator<Map> {
     } else if (data == "/") {
       state = closeTagOpenState;
     } else if (isLetter(data)) {
-      currentToken = {"type": StartTagToken,
-                 "name": data, "data": [],
-                 "selfClosing": false,
-                 "selfClosingAcknowledged": false};
+      currentToken = new StartTagToken(data);
       state = tagNameState;
     } else if (data == ">") {
       // XXX In theory it could be something besides a tag name. But
       // do we really care?
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "expected-tag-name-but-got-right-bracket"});
-      tokenQueue.addLast({"type": CharactersToken, "data": "<>"});
+      tokenQueue.addLast(new ParseErrorToken(
+          "expected-tag-name-but-got-right-bracket"));
+      tokenQueue.addLast(new CharactersToken("<>"));
       state = dataState;
     } else if (data == "?") {
       // XXX In theory it could be something besides a tag name. But
       // do we really care?
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "expected-tag-name-but-got-question-mark"});
+      tokenQueue.addLast(new ParseErrorToken(
+          "expected-tag-name-but-got-question-mark"));
       stream.unget(data);
       state = bogusCommentState;
     } else {
       // XXX
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "expected-tag-name"});
-      tokenQueue.addLast({"type": CharactersToken, "data": "<"});
+      tokenQueue.addLast(new ParseErrorToken("expected-tag-name"));
+      tokenQueue.addLast(new CharactersToken("<"));
       stream.unget(data);
       state = dataState;
     }
@@ -470,23 +452,21 @@ class HTMLTokenizer implements Iterator<Map> {
   bool closeTagOpenState() {
     var data = stream.char();
     if (isLetter(data)) {
-      currentToken = {"type": EndTagToken, "name": data,
-                      "data": [], "selfClosing":false};
+      currentToken = new EndTagToken(data);
       state = tagNameState;
     } else if (data == ">") {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "expected-closing-tag-but-got-right-bracket"});
+      tokenQueue.addLast(new ParseErrorToken(
+          "expected-closing-tag-but-got-right-bracket"));
       state = dataState;
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "expected-closing-tag-but-got-eof"});
-      tokenQueue.addLast({"type": CharactersToken, "data": "</"});
+      tokenQueue.addLast(new ParseErrorToken(
+          "expected-closing-tag-but-got-eof"));
+      tokenQueue.addLast(new CharactersToken("</"));
       state = dataState;
     } else {
       // XXX data can be _'_...
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "expected-closing-tag-but-got-char",
-          "datavars": {"data": data}});
+      tokenQueue.addLast(new ParseErrorToken(
+          "expected-closing-tag-but-got-char", messageParams: {"data": data}));
       stream.unget(data);
       state = bogusCommentState;
     }
@@ -500,17 +480,15 @@ class HTMLTokenizer implements Iterator<Map> {
     } else if (data == ">") {
       emitCurrentToken();
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-tag-name"});
+      tokenQueue.addLast(new ParseErrorToken("eof-in-tag-name"));
       state = dataState;
     } else if (data == "/") {
       state = selfClosingStartTagState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                  "data": "invalid-codepoint"});
-      currentToken["name"] = '${currentToken["name"]}\uFFFD';
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      currentTagToken.name = '${currentTagToken.name}\uFFFD';
     } else {
-      currentToken["name"] = '${currentToken["name"]}${data}';
+      currentTagToken.name = '${currentTagToken.name}${data}';
       // (Don't use charsUntil here, because tag names are
       // very short and it's faster to not do anything fancy)
     }
@@ -523,7 +501,7 @@ class HTMLTokenizer implements Iterator<Map> {
       temporaryBuffer = "";
       state = rcdataEndTagOpenState;
     } else {
-      tokenQueue.addLast({"type": CharactersToken, "data": "<"});
+      tokenQueue.addLast(new CharactersToken("<"));
       stream.unget(data);
       state = rcdataState;
     }
@@ -536,7 +514,7 @@ class HTMLTokenizer implements Iterator<Map> {
       temporaryBuffer = '${temporaryBuffer}${data}';
       state = rcdataEndTagNameState;
     } else {
-      tokenQueue.addLast({"type": CharactersToken, "data": "</"});
+      tokenQueue.addLast(new CharactersToken("</"));
       stream.unget(data);
       state = rcdataState;
     }
@@ -544,34 +522,27 @@ class HTMLTokenizer implements Iterator<Map> {
   }
 
   bool _tokenIsAppropriate() {
-    return currentToken != null &&
-        currentToken["name"].toLowerCase() == temporaryBuffer.toLowerCase();
+    return currentToken is TagToken &&
+        currentTagToken.name.toLowerCase() == temporaryBuffer.toLowerCase();
   }
 
   bool rcdataEndTagNameState() {
     var appropriate = _tokenIsAppropriate();
     var data = stream.char();
     if (isWhitespace(data) && appropriate) {
-      currentToken = {"type": EndTagToken,
-                      "name": temporaryBuffer,
-                      "data": [], "selfClosing":false};
+      currentToken = new EndTagToken(temporaryBuffer);
       state = beforeAttributeNameState;
     } else if (data == "/" && appropriate) {
-      currentToken = {"type": EndTagToken,
-                      "name": temporaryBuffer,
-                      "data": [], "selfClosing":false};
+      currentToken = new EndTagToken(temporaryBuffer);
       state = selfClosingStartTagState;
     } else if (data == ">" && appropriate) {
-      currentToken = {"type": EndTagToken,
-                      "name": temporaryBuffer,
-                      "data": [], "selfClosing":false};
+      currentToken = new EndTagToken(temporaryBuffer);
       emitCurrentToken();
       state = dataState;
     } else if (isLetter(data)) {
       temporaryBuffer = '${temporaryBuffer}${data}';
     } else {
-      tokenQueue.addLast({"type": CharactersToken,
-                          "data": "</$temporaryBuffer"});
+      tokenQueue.addLast(new CharactersToken("</$temporaryBuffer"));
       stream.unget(data);
       state = rcdataState;
     }
@@ -584,7 +555,7 @@ class HTMLTokenizer implements Iterator<Map> {
       temporaryBuffer = "";
       state = rawtextEndTagOpenState;
     } else {
-      tokenQueue.addLast({"type": CharactersToken, "data": "<"});
+      tokenQueue.addLast(new CharactersToken("<"));
       stream.unget(data);
       state = rawtextState;
     }
@@ -597,7 +568,7 @@ class HTMLTokenizer implements Iterator<Map> {
       temporaryBuffer = '${temporaryBuffer}${data}';
       state = rawtextEndTagNameState;
     } else {
-      tokenQueue.addLast({"type": CharactersToken, "data": "</"});
+      tokenQueue.addLast(new CharactersToken("</"));
       stream.unget(data);
       state = rawtextState;
     }
@@ -608,26 +579,19 @@ class HTMLTokenizer implements Iterator<Map> {
     var appropriate = _tokenIsAppropriate();
     var data = stream.char();
     if (isWhitespace(data) && appropriate) {
-      currentToken = {"type": EndTagToken,
-                      "name": temporaryBuffer,
-                      "data": [], "selfClosing":false};
+      currentToken = new EndTagToken(temporaryBuffer);
       state = beforeAttributeNameState;
     } else if (data == "/" && appropriate) {
-      currentToken = {"type": EndTagToken,
-                      "name": temporaryBuffer,
-                      "data": [], "selfClosing":false};
+      currentToken = new EndTagToken(temporaryBuffer);
       state = selfClosingStartTagState;
     } else if (data == ">" && appropriate) {
-      currentToken = {"type": EndTagToken,
-                      "name": temporaryBuffer,
-                      "data": [], "selfClosing":false};
+      currentToken = new EndTagToken(temporaryBuffer);
       emitCurrentToken();
       state = dataState;
     } else if (isLetter(data)) {
       temporaryBuffer = '${temporaryBuffer}${data}';
     } else {
-      tokenQueue.addLast({"type": CharactersToken,
-                  "data": "</$temporaryBuffer"});
+      tokenQueue.addLast(new CharactersToken("</$temporaryBuffer"));
       stream.unget(data);
       state = rawtextState;
     }
@@ -640,10 +604,10 @@ class HTMLTokenizer implements Iterator<Map> {
       temporaryBuffer = "";
       state = scriptDataEndTagOpenState;
     } else if (data == "!") {
-      tokenQueue.addLast({"type": CharactersToken, "data": "<!"});
+      tokenQueue.addLast(new CharactersToken("<!"));
       state = scriptDataEscapeStartState;
     } else {
-      tokenQueue.addLast({"type": CharactersToken, "data": "<"});
+      tokenQueue.addLast(new CharactersToken("<"));
       stream.unget(data);
       state = scriptDataState;
     }
@@ -656,7 +620,7 @@ class HTMLTokenizer implements Iterator<Map> {
       temporaryBuffer = '${temporaryBuffer}${data}';
       state = scriptDataEndTagNameState;
     } else {
-      tokenQueue.addLast({"type": CharactersToken, "data": "</"});
+      tokenQueue.addLast(new CharactersToken("</"));
       stream.unget(data);
       state = scriptDataState;
     }
@@ -667,26 +631,19 @@ class HTMLTokenizer implements Iterator<Map> {
     var appropriate = _tokenIsAppropriate();
     var data = stream.char();
     if (isWhitespace(data) && appropriate) {
-      currentToken = {"type": EndTagToken,
-                 "name": temporaryBuffer,
-                 "data": [], "selfClosing":false};
+      currentToken = new EndTagToken(temporaryBuffer);
       state = beforeAttributeNameState;
     } else if (data == "/" && appropriate) {
-      currentToken = {"type": EndTagToken,
-                 "name": temporaryBuffer,
-                 "data": [], "selfClosing":false};
+      currentToken = new EndTagToken(temporaryBuffer);
       state = selfClosingStartTagState;
     } else if (data == ">" && appropriate) {
-      currentToken = {"type": EndTagToken,
-                 "name": temporaryBuffer,
-                 "data": [], "selfClosing":false};
+      currentToken = new EndTagToken(temporaryBuffer);
       emitCurrentToken();
       state = dataState;
     } else if (isLetter(data)) {
       temporaryBuffer = '${temporaryBuffer}${data}';
     } else {
-      tokenQueue.addLast({"type": CharactersToken,
-                  "data": "</$temporaryBuffer"});
+      tokenQueue.addLast(new CharactersToken("</$temporaryBuffer"));
       stream.unget(data);
       state = scriptDataState;
     }
@@ -696,7 +653,7 @@ class HTMLTokenizer implements Iterator<Map> {
   bool scriptDataEscapeStartState() {
     var data = stream.char();
     if (data == "-") {
-      tokenQueue.addLast({"type": CharactersToken, "data": "-"});
+      tokenQueue.addLast(new CharactersToken("-"));
       state = scriptDataEscapeStartDashState;
     } else {
       stream.unget(data);
@@ -708,7 +665,7 @@ class HTMLTokenizer implements Iterator<Map> {
   bool scriptDataEscapeStartDashState() {
     var data = stream.char();
     if (data == "-") {
-      tokenQueue.addLast({"type": CharactersToken, "data": "-"});
+      tokenQueue.addLast(new CharactersToken("-"));
       state = scriptDataEscapedDashDashState;
     } else {
       stream.unget(data);
@@ -720,21 +677,18 @@ class HTMLTokenizer implements Iterator<Map> {
   bool scriptDataEscapedState() {
     var data = stream.char();
     if (data == "-") {
-      tokenQueue.addLast({"type": CharactersToken, "data": "-"});
+      tokenQueue.addLast(new CharactersToken("-"));
       state = scriptDataEscapedDashState;
     } else if (data == "<") {
       state = scriptDataEscapedLessThanSignState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                  "data": "invalid-codepoint"});
-      tokenQueue.addLast({"type": CharactersToken,
-                  "data": "\uFFFD"});
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      tokenQueue.addLast(new CharactersToken("\uFFFD"));
     } else if (data == EOF) {
       state = dataState;
     } else {
       var chars = stream.charsUntil("<-\u0000");
-      tokenQueue.addLast({"type": CharactersToken, "data":
-          '${data}${chars}'});
+      tokenQueue.addLast(new CharactersToken("${data}${chars}"));
     }
     return true;
   }
@@ -742,20 +696,18 @@ class HTMLTokenizer implements Iterator<Map> {
   bool scriptDataEscapedDashState() {
     var data = stream.char();
     if (data == "-") {
-      tokenQueue.addLast({"type": CharactersToken, "data": "-"});
+      tokenQueue.addLast(new CharactersToken("-"));
       state = scriptDataEscapedDashDashState;
     } else if (data == "<") {
       state = scriptDataEscapedLessThanSignState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                          "data": "invalid-codepoint"});
-      tokenQueue.addLast({"type": CharactersToken,
-                          "data": "\uFFFD"});
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      tokenQueue.addLast(new CharactersToken("\uFFFD"));
       state = scriptDataEscapedState;
     } else if (data == EOF) {
       state = dataState;
     } else {
-      tokenQueue.addLast({"type": CharactersToken, "data": data});
+      tokenQueue.addLast(new CharactersToken(data));
       state = scriptDataEscapedState;
     }
     return true;
@@ -764,22 +716,20 @@ class HTMLTokenizer implements Iterator<Map> {
   bool scriptDataEscapedDashDashState() {
     var data = stream.char();
     if (data == "-") {
-      tokenQueue.addLast({"type": CharactersToken, "data": "-"});
+      tokenQueue.addLast(new CharactersToken("-"));
     } else if (data == "<") {
       state = scriptDataEscapedLessThanSignState;
     } else if (data == ">") {
-      tokenQueue.addLast({"type": CharactersToken, "data": ">"});
+      tokenQueue.addLast(new CharactersToken(">"));
       state = scriptDataState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                  "data": "invalid-codepoint"});
-      tokenQueue.addLast({"type": CharactersToken,
-                  "data": "\uFFFD"});
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      tokenQueue.addLast(new CharactersToken("\uFFFD"));
       state = scriptDataEscapedState;
     } else if (data == EOF) {
       state = dataState;
     } else {
-      tokenQueue.addLast({"type": CharactersToken, "data": data});
+      tokenQueue.addLast(new CharactersToken(data));
       state = scriptDataEscapedState;
     }
     return true;
@@ -791,11 +741,11 @@ class HTMLTokenizer implements Iterator<Map> {
       temporaryBuffer = "";
       state = scriptDataEscapedEndTagOpenState;
     } else if (isLetter(data)) {
-      tokenQueue.addLast({"type": CharactersToken, "data": "<$data"});
+      tokenQueue.addLast(new CharactersToken("<$data"));
       temporaryBuffer = data;
       state = scriptDataDoubleEscapeStartState;
     } else {
-      tokenQueue.addLast({"type": CharactersToken, "data": "<"});
+      tokenQueue.addLast(new CharactersToken("<"));
       stream.unget(data);
       state = scriptDataEscapedState;
     }
@@ -808,7 +758,7 @@ class HTMLTokenizer implements Iterator<Map> {
       temporaryBuffer = data;
       state = scriptDataEscapedEndTagNameState;
     } else {
-      tokenQueue.addLast({"type": CharactersToken, "data": "</"});
+      tokenQueue.addLast(new CharactersToken("</"));
       stream.unget(data);
       state = scriptDataEscapedState;
     }
@@ -819,26 +769,19 @@ class HTMLTokenizer implements Iterator<Map> {
     var appropriate = _tokenIsAppropriate();
     var data = stream.char();
     if (isWhitespace(data) && appropriate) {
-      currentToken = {"type": EndTagToken,
-                      "name": temporaryBuffer,
-                      "data": [], "selfClosing":false};
+      currentToken = new EndTagToken(temporaryBuffer);
       state = beforeAttributeNameState;
     } else if (data == "/" && appropriate) {
-      currentToken = {"type": EndTagToken,
-                 "name": temporaryBuffer,
-                 "data": [], "selfClosing":false};
+      currentToken = new EndTagToken(temporaryBuffer);
       state = selfClosingStartTagState;
     } else if (data == ">" && appropriate) {
-      currentToken = {"type": EndTagToken,
-                 "name": temporaryBuffer,
-                 "data": [], "selfClosing":false};
+      currentToken = new EndTagToken(temporaryBuffer);
       emitCurrentToken();
       state = dataState;
     } else if (isLetter(data)) {
       temporaryBuffer = '${temporaryBuffer}${data}';
     } else {
-      tokenQueue.addLast({"type": CharactersToken,
-                          "data": "</$temporaryBuffer"});
+      tokenQueue.addLast(new CharactersToken("</$temporaryBuffer"));
       stream.unget(data);
       state = scriptDataEscapedState;
     }
@@ -848,14 +791,14 @@ class HTMLTokenizer implements Iterator<Map> {
   bool scriptDataDoubleEscapeStartState() {
     var data = stream.char();
     if (isWhitespace(data) || data == "/" || data == ">") {
-      tokenQueue.addLast({"type": CharactersToken, "data": data});
+      tokenQueue.addLast(new CharactersToken(data));
       if (temporaryBuffer.toLowerCase() == "script") {
         state = scriptDataDoubleEscapedState;
       } else {
         state = scriptDataEscapedState;
       }
     } else if (isLetter(data)) {
-      tokenQueue.addLast({"type": CharactersToken, "data": data});
+      tokenQueue.addLast(new CharactersToken(data));
       temporaryBuffer = '${temporaryBuffer}${data}';
     } else {
       stream.unget(data);
@@ -867,22 +810,19 @@ class HTMLTokenizer implements Iterator<Map> {
   bool scriptDataDoubleEscapedState() {
     var data = stream.char();
     if (data == "-") {
-      tokenQueue.addLast({"type": CharactersToken, "data": "-"});
+      tokenQueue.addLast(new CharactersToken("-"));
       state = scriptDataDoubleEscapedDashState;
     } else if (data == "<") {
-      tokenQueue.addLast({"type": CharactersToken, "data": "<"});
+      tokenQueue.addLast(new CharactersToken("<"));
       state = scriptDataDoubleEscapedLessThanSignState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                  "data": "invalid-codepoint"});
-      tokenQueue.addLast({"type": CharactersToken,
-                  "data": "\uFFFD"});
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      tokenQueue.addLast(new CharactersToken("\uFFFD"));
     } else if (data == EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-script-in-script"});
+      tokenQueue.addLast(new ParseErrorToken("eof-in-script-in-script"));
       state = dataState;
     } else {
-      tokenQueue.addLast({"type": CharactersToken, "data": data});
+      tokenQueue.addLast(new CharactersToken(data));
     }
     return true;
   }
@@ -890,23 +830,20 @@ class HTMLTokenizer implements Iterator<Map> {
   bool scriptDataDoubleEscapedDashState() {
     var data = stream.char();
     if (data == "-") {
-      tokenQueue.addLast({"type": CharactersToken, "data": "-"});
+      tokenQueue.addLast(new CharactersToken("-"));
       state = scriptDataDoubleEscapedDashDashState;
     } else if (data == "<") {
-      tokenQueue.addLast({"type": CharactersToken, "data": "<"});
+      tokenQueue.addLast(new CharactersToken("<"));
       state = scriptDataDoubleEscapedLessThanSignState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                          "data": "invalid-codepoint"});
-      tokenQueue.addLast({"type": CharactersToken,
-                          "data": "\uFFFD"});
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      tokenQueue.addLast(new CharactersToken("\uFFFD"));
       state = scriptDataDoubleEscapedState;
     } else if (data == EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-script-in-script"});
+      tokenQueue.addLast(new ParseErrorToken("eof-in-script-in-script"));
       state = dataState;
     } else {
-      tokenQueue.addLast({"type": CharactersToken, "data": data});
+      tokenQueue.addLast(new CharactersToken(data));
       state = scriptDataDoubleEscapedState;
     }
     return true;
@@ -917,25 +854,22 @@ class HTMLTokenizer implements Iterator<Map> {
   bool scriptDataDoubleEscapedDashDashState() {
     var data = stream.char();
     if (data == "-") {
-      tokenQueue.addLast({"type": CharactersToken, "data": "-"});
+      tokenQueue.addLast(new CharactersToken("-"));
     } else if (data == "<") {
-      tokenQueue.addLast({"type": CharactersToken, "data": "<"});
+      tokenQueue.addLast(new CharactersToken("<"));
       state = scriptDataDoubleEscapedLessThanSignState;
     } else if (data == ">") {
-      tokenQueue.addLast({"type": CharactersToken, "data": ">"});
+      tokenQueue.addLast(new CharactersToken(">"));
       state = scriptDataState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                  "data": "invalid-codepoint"});
-      tokenQueue.addLast({"type": CharactersToken,
-                  "data": "\uFFFD"});
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      tokenQueue.addLast(new CharactersToken("\uFFFD"));
       state = scriptDataDoubleEscapedState;
     } else if (data == EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-script-in-script"});
+      tokenQueue.addLast(new ParseErrorToken("eof-in-script-in-script"));
       state = dataState;
     } else {
-      tokenQueue.addLast({"type": CharactersToken, "data": data});
+      tokenQueue.addLast(new CharactersToken(data));
       state = scriptDataDoubleEscapedState;
     }
     return true;
@@ -944,7 +878,7 @@ class HTMLTokenizer implements Iterator<Map> {
   bool scriptDataDoubleEscapedLessThanSignState() {
     var data = stream.char();
     if (data == "/") {
-      tokenQueue.addLast({"type": CharactersToken, "data": "/"});
+      tokenQueue.addLast(new CharactersToken("/"));
       temporaryBuffer = "";
       state = scriptDataDoubleEscapeEndState;
     } else {
@@ -957,14 +891,14 @@ class HTMLTokenizer implements Iterator<Map> {
   bool scriptDataDoubleEscapeEndState() {
     var data = stream.char();
     if (isWhitespace(data) || data == "/" || data == ">") {
-      tokenQueue.addLast({"type": CharactersToken, "data": data});
+      tokenQueue.addLast(new CharactersToken(data));
       if (temporaryBuffer.toLowerCase() == "script") {
         state = scriptDataEscapedState;
       } else {
         state = scriptDataDoubleEscapedState;
       }
     } else if (isLetter(data)) {
-      tokenQueue.addLast({"type": CharactersToken, "data": data});
+      tokenQueue.addLast(new CharactersToken(data));
       temporaryBuffer = '${temporaryBuffer}${data}';
     } else {
       stream.unget(data);
@@ -978,28 +912,27 @@ class HTMLTokenizer implements Iterator<Map> {
     if (isWhitespace(data)) {
       stream.charsUntil(spaceCharacters, true);
     } else if (isLetter(data)) {
-      currentToken["data"].add([data, ""]);
+      currentToken.data.add([data, ""]);
       state = attributeNameState;
     } else if (data == ">") {
       emitCurrentToken();
     } else if (data == "/") {
       state = selfClosingStartTagState;
-    } else if (inStr(data, "'\"=<")) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "invalid-character-in-attribute-name"});
-      currentToken["data"].add([data, ""]);
+    } else if (data === EOF) {
+      tokenQueue.addLast(new ParseErrorToken(
+          "expected-attribute-name-but-got-eof"));
+      state = dataState;
+    } else if ("'\"=<".contains(data)) {
+      tokenQueue.addLast(new ParseErrorToken(
+          "invalid-character-in-attribute-name"));
+      currentToken.data.add([data, ""]);
       state = attributeNameState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                  "data": "invalid-codepoint"});
-      currentToken["data"].add(["\uFFFD", ""]);
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      currentToken.data.add(["\uFFFD", ""]);
       state = attributeNameState;
-    } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "expected-attribute-name-but-got-eof"});
-      state = dataState;
     } else {
-      currentToken["data"].add([data, ""]);
+      currentToken.data.add([data, ""]);
       state = attributeNameState;
     }
     return true;
@@ -1025,19 +958,16 @@ class HTMLTokenizer implements Iterator<Map> {
     } else if (data == "/") {
       state = selfClosingStartTagState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                          "data": "invalid-codepoint"});
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
       lastData[0] = '${lastData[0]}\uFFFD';
       leavingThisState = false;
-    } else if (inStr(data, "'\"<")) {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                          "data": "invalid-character-in-attribute-name"});
+    } else if (data === EOF) {
+      tokenQueue.addLast(new ParseErrorToken("eof-in-attribute-name"));
+      state = dataState;
+    } else if ("'\"<".contains(data)) {
+      tokenQueue.addLast(new ParseErrorToken("invalid-character-in-attribute-name"));
       lastData[0] = '${lastData[0]}${data}';
       leavingThisState = false;
-    } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                          "data": "eof-in-attribute-name"});
-      state = dataState;
     } else {
       lastData[0] = '${lastData[0]}${data}';
       leavingThisState = false;
@@ -1050,11 +980,10 @@ class HTMLTokenizer implements Iterator<Map> {
       if (lowercaseAttrName) {
         lastData[0] = asciiUpper2Lower(lastData[0]);
       }
-      for (int i = 0; i < currentToken["data"].length - 1; i++) {
-        var name = currentToken["data"][i][0];
+      for (int i = 0; i < currentToken.data.length - 1; i++) {
+        var name = currentToken.data[i][0];
         if (lastData[0] == name) {
-          tokenQueue.addLast({"type": ParseErrorToken, "data":
-              "duplicate-attribute"});
+          tokenQueue.addLast(new ParseErrorToken("duplicate-attribute"));
           break;
         }
       }
@@ -1075,26 +1004,24 @@ class HTMLTokenizer implements Iterator<Map> {
     } else if (data == ">") {
       emitCurrentToken();
     } else if (isLetter(data)) {
-      currentToken["data"].add([data, ""]);
+      currentToken.data.add([data, ""]);
       state = attributeNameState;
     } else if (data == "/") {
       state = selfClosingStartTagState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                          "data": "invalid-codepoint"});
-      currentToken["data"].add(["\uFFFD", ""]);
-      state = attributeNameState;
-    } else if (inStr(data, "'\"<")) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-      "invalid-character-after-attribute-name"});
-      currentToken["data"].add([data, ""]);
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      currentToken.data.add(["\uFFFD", ""]);
       state = attributeNameState;
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-      "expected-end-of-tag-but-got-eof"});
+      tokenQueue.addLast(new ParseErrorToken(
+          "expected-end-of-tag-but-got-eof"));
       state = dataState;
+    } else if ("'\"<".contains(data)) {
+      tokenQueue.addLast(new ParseErrorToken("invalid-character-after-attribute-name"));
+      currentToken.data.add([data, ""]);
+      state = attributeNameState;
     } else {
-      currentToken["data"].add([data, ""]);
+      currentToken.data.add([data, ""]);
       state = attributeNameState;
     }
     return true;
@@ -1112,23 +1039,22 @@ class HTMLTokenizer implements Iterator<Map> {
     } else if (data == "'") {
       state = attributeValueSingleQuotedState;
     } else if (data == ">") {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "expected-attribute-value-but-got-right-bracket"});
+      tokenQueue.addLast(new ParseErrorToken(
+          "expected-attribute-value-but-got-right-bracket"));
       emitCurrentToken();
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                  "data": "invalid-codepoint"});
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
       lastData[1] = '${lastData[1]}\uFFFD';
       state = attributeValueUnQuotedState;
-    } else if (inStr(data, "=<`")) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "equals-in-unquoted-attribute-value"});
+    } else if (data === EOF) {
+      tokenQueue.addLast(new ParseErrorToken(
+          "expected-attribute-value-but-got-eof"));
+      state = dataState;
+    } else if ("=<`".contains(data)) {
+      tokenQueue.addLast(new ParseErrorToken(
+          "equals-in-unquoted-attribute-value"));
       lastData[1] = '${lastData[1]}${data}';
       state = attributeValueUnQuotedState;
-    } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "expected-attribute-value-but-got-eof"});
-      state = dataState;
     } else {
       lastData[1] = '${lastData[1]}${data}';
       state = attributeValueUnQuotedState;
@@ -1143,12 +1069,10 @@ class HTMLTokenizer implements Iterator<Map> {
     } else if (data == "&") {
       processEntityInAttribute('"');
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                          "data": "invalid-codepoint"});
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
       lastData[1] = '${lastData[1]}\uFFFD';
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-attribute-value-double-quote"});
+      tokenQueue.addLast(new ParseErrorToken("eof-in-attribute-value-double-quote"));
       state = dataState;
     } else {
       lastData[1] = '${lastData[1]}${data}'
@@ -1164,12 +1088,11 @@ class HTMLTokenizer implements Iterator<Map> {
     } else if (data == "&") {
       processEntityInAttribute("'");
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                  "data": "invalid-codepoint"});
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
       lastData[1] = '${lastData[1]}\uFFFD';
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-attribute-value-single-quote"});
+      tokenQueue.addLast(new ParseErrorToken(
+          "eof-in-attribute-value-single-quote"));
       state = dataState;
     } else {
       lastData[1] = '${lastData[1]}${data}'
@@ -1186,18 +1109,16 @@ class HTMLTokenizer implements Iterator<Map> {
       processEntityInAttribute(">");
     } else if (data == ">") {
       emitCurrentToken();
-    } else if (inStr(data, '"\'=<`')) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-              "unexpected-character-in-unquoted-attribute-value"});
+    } else if (data === EOF) {
+      tokenQueue.addLast(new ParseErrorToken(
+          "eof-in-attribute-value-no-quotes"));
+      state = dataState;
+    } else if ('"\'=<`'.contains(data)) {
+      tokenQueue.addLast(new ParseErrorToken("unexpected-character-in-unquoted-attribute-value"));
       lastData[1] = '${lastData[1]}${data}';
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                  "data": "invalid-codepoint"});
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
       lastData[1] = '${lastData[1]}\uFFFD';
-    } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-attribute-value-no-quotes"});
-      state = dataState;
     } else {
       lastData[1] = '${lastData[1]}${data}'
           '${stream.charsUntil("&>\"\'=<`$spaceCharacters")}';
@@ -1214,13 +1135,11 @@ class HTMLTokenizer implements Iterator<Map> {
     } else if (data == "/") {
       state = selfClosingStartTagState;
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-              "unexpected-EOF-after-attribute-value"});
+      tokenQueue.addLast(new ParseErrorToken("unexpected-EOF-after-attribute-value"));
       stream.unget(data);
       state = dataState;
     } else {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-              "unexpected-character-after-attribute-value"});
+      tokenQueue.addLast(new ParseErrorToken("unexpected-character-after-attribute-value"));
       stream.unget(data);
       state = beforeAttributeNameState;
     }
@@ -1230,16 +1149,14 @@ class HTMLTokenizer implements Iterator<Map> {
   bool selfClosingStartTagState() {
     var data = stream.char();
     if (data == ">") {
-      currentToken["selfClosing"] = true;
+      currentTagToken.selfClosing = true;
       emitCurrentToken();
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                          "data": "unexpected-EOF-after-solidus-in-tag"});
+      tokenQueue.addLast(new ParseErrorToken("unexpected-EOF-after-solidus-in-tag"));
       stream.unget(data);
       state = dataState;
     } else {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-              "unexpected-character-after-soldius-in-tag"});
+      tokenQueue.addLast(new ParseErrorToken("unexpected-character-after-soldius-in-tag"));
       stream.unget(data);
       state = beforeAttributeNameState;
     }
@@ -1252,7 +1169,7 @@ class HTMLTokenizer implements Iterator<Map> {
     // and emit it.
     var data = stream.charsUntil(">");
     data = data.replaceAll("\u0000", "\uFFFD");
-    tokenQueue.addLast({"type": CommentToken, "data": data});
+    tokenQueue.addLast(new CommentToken(data));
 
     // Eat the character directly after the bogus comment which is either a
     // ">" or an EOF.
@@ -1266,24 +1183,22 @@ class HTMLTokenizer implements Iterator<Map> {
     if (charStack.last() == "-") {
       charStack.add(stream.char());
       if (charStack.last() == "-") {
-        currentToken = {"type": CommentToken, "data": ""};
+        currentToken = new CommentToken("");
         state = commentStartState;
         return true;
       }
     } else if (charStack.last() == 'd' || charStack.last() == 'D') {
       var matched = true;
       for (var expected in const ['oO', 'cC', 'tT', 'yY', 'pP', 'eE']) {
-        charStack.add(stream.char());
-        if (!inStr(charStack.last(), expected)) {
+        var char = stream.char();
+        charStack.add(char);
+        if (char == EOF || !expected.contains(char)) {
           matched = false;
           break;
         }
       }
       if (matched) {
-        currentToken = {"type": DoctypeToken,
-                        "name": "",
-                        "publicId": null, "systemId": null,
-                        "correct": true};
+        currentToken = new DoctypeToken(correct: true);
         state = doctypeState;
         return true;
       }
@@ -1305,8 +1220,7 @@ class HTMLTokenizer implements Iterator<Map> {
       }
     }
 
-    tokenQueue.addLast({"type": ParseErrorToken, "data":
-        "expected-dashes-or-doctype"});
+    tokenQueue.addLast(new ParseErrorToken("expected-dashes-or-doctype"));
 
     while (charStack.length > 0) {
       stream.unget(charStack.removeLast());
@@ -1320,21 +1234,18 @@ class HTMLTokenizer implements Iterator<Map> {
     if (data == "-") {
       state = commentStartDashState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                  "data": "invalid-codepoint"});
-      currentToken["data"] = '${currentToken["data"]}\uFFFD';
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      currentToken.data = '${currentToken.data}\uFFFD';
     } else if (data == ">") {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "incorrect-comment"});
+      tokenQueue.addLast(new ParseErrorToken("incorrect-comment"));
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-comment"});
+      tokenQueue.addLast(new ParseErrorToken("eof-in-comment"));
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
-      currentToken["data"] = '${currentToken["data"]}${data}';
+      currentToken.data = '${currentToken.data}${data}';
       state = commentState;
     }
     return true;
@@ -1345,21 +1256,18 @@ class HTMLTokenizer implements Iterator<Map> {
     if (data == "-") {
       state = commentEndState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                          "data": "invalid-codepoint"});
-      currentToken["data"] = '${currentToken["data"]}-\uFFFD';
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      currentToken.data = '${currentToken.data}-\uFFFD';
     } else if (data == ">") {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "incorrect-comment"});
+      tokenQueue.addLast(new ParseErrorToken("incorrect-comment"));
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-comment"});
+      tokenQueue.addLast(new ParseErrorToken("eof-in-comment"));
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
-      currentToken["data"] = '${currentToken["data"]}-${data}';
+      currentToken.data = '${currentToken.data}-${data}';
       state = commentState;
     }
     return true;
@@ -1370,16 +1278,14 @@ class HTMLTokenizer implements Iterator<Map> {
     if (data == "-") {
       state = commentEndDashState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                          "data": "invalid-codepoint"});
-      currentToken["data"] = '${currentToken["data"]}\uFFFD';
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      currentToken.data = '${currentToken.data}\uFFFD';
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                          "data": "eof-in-comment"});
+      tokenQueue.addLast(new ParseErrorToken("eof-in-comment"));
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
-      currentToken["data"] = '${currentToken["data"]}${data}'
+      currentToken.data = '${currentToken.data}${data}'
           '${stream.charsUntil("-\u0000")}';
     }
     return true;
@@ -1390,17 +1296,15 @@ class HTMLTokenizer implements Iterator<Map> {
     if (data == "-") {
       state = commentEndState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                          "data": "invalid-codepoint"});
-      currentToken["data"] = "${currentToken["data"]}-\uFFFD";
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      currentToken.data = "${currentToken.data}-\uFFFD";
       state = commentState;
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-comment-end-dash"});
+      tokenQueue.addLast(new ParseErrorToken("eof-in-comment-end-dash"));
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
-      currentToken["data"] = "${currentToken["data"]}-${data}";
+      currentToken.data = "${currentToken.data}-${data}";
       state = commentState;
     }
     return true;
@@ -1412,28 +1316,25 @@ class HTMLTokenizer implements Iterator<Map> {
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                  "data": "invalid-codepoint"});
-      currentToken["data"] = '${currentToken["data"]}--\uFFFD';
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      currentToken.data = '${currentToken.data}--\uFFFD';
       state = commentState;
     } else if (data == "!") {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "unexpected-bang-after-double-dash-in-comment"});
+      tokenQueue.addLast(new ParseErrorToken(
+          "unexpected-bang-after-double-dash-in-comment"));
       state = commentEndBangState;
     } else if (data == "-") {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "unexpected-dash-after-double-dash-in-comment"});
-      currentToken["data"] = '${currentToken["data"]}${data}';
+      tokenQueue.addLast(new ParseErrorToken(
+          "unexpected-dash-after-double-dash-in-comment"));
+      currentToken.data = '${currentToken.data}${data}';
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-comment-double-dash"});
+      tokenQueue.addLast(new ParseErrorToken("eof-in-comment-double-dash"));
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
       // XXX
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "unexpected-char-in-comment"});
-      currentToken["data"] = "${currentToken["data"]}--${data}";
+      tokenQueue.addLast(new ParseErrorToken("unexpected-char-in-comment"));
+      currentToken.data = "${currentToken.data}--${data}";
       state = commentState;
     }
     return true;
@@ -1445,20 +1346,18 @@ class HTMLTokenizer implements Iterator<Map> {
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else if (data == "-") {
-      currentToken["data"] = '${currentToken["data"]}--!';
+      currentToken.data = '${currentToken.data}--!';
       state = commentEndDashState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                  "data": "invalid-codepoint"});
-      currentToken["data"] = '${currentToken["data"]}--!\uFFFD';
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      currentToken.data = '${currentToken.data}--!\uFFFD';
       state = commentState;
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-comment-end-bang-state"});
+      tokenQueue.addLast(new ParseErrorToken("eof-in-comment-end-bang-state"));
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
-      currentToken["data"] = "${currentToken["data"]}--!${data}";
+      currentToken.data = "${currentToken.data}--!${data}";
       state = commentState;
     }
     return true;
@@ -1469,14 +1368,13 @@ class HTMLTokenizer implements Iterator<Map> {
     if (isWhitespace(data)) {
       state = beforeDoctypeNameState;
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "expected-doctype-name-but-got-eof"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken(
+          "expected-doctype-name-but-got-eof"));
+      currentDoctypeToken.correct = false;
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "need-space-after-doctype"});
+      tokenQueue.addLast(new ParseErrorToken("need-space-after-doctype"));
       stream.unget(data);
       state = beforeDoctypeNameState;
     }
@@ -1488,24 +1386,23 @@ class HTMLTokenizer implements Iterator<Map> {
     if (isWhitespace(data)) {
       return true;
     } else if (data == ">") {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "expected-doctype-name-but-got-right-bracket"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken(
+          "expected-doctype-name-but-got-right-bracket"));
+      currentDoctypeToken.correct = false;
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                          "data": "invalid-codepoint"});
-      currentToken["name"] = "\uFFFD";
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      currentDoctypeToken.name = "\uFFFD";
       state = doctypeNameState;
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "expected-doctype-name-but-got-eof"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken(
+          "expected-doctype-name-but-got-eof"));
+      currentDoctypeToken.correct = false;
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
-      currentToken["name"] = data;
+      currentDoctypeToken.name = data;
       state = doctypeNameState;
     }
     return true;
@@ -1514,26 +1411,24 @@ class HTMLTokenizer implements Iterator<Map> {
   bool doctypeNameState() {
     var data = stream.char();
     if (isWhitespace(data)) {
-      currentToken["name"] = asciiUpper2Lower(currentToken["name"]);
+      currentDoctypeToken.name = asciiUpper2Lower(currentDoctypeToken.name);
       state = afterDoctypeNameState;
     } else if (data == ">") {
-      currentToken["name"] = asciiUpper2Lower(currentToken["name"]);
+      currentDoctypeToken.name = asciiUpper2Lower(currentDoctypeToken.name);
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                  "data": "invalid-codepoint"});
-      currentToken["name"] = "${currentToken["name"]}\uFFFD";
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      currentDoctypeToken.name = "${currentDoctypeToken.name}\uFFFD";
       state = doctypeNameState;
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-doctype-name"});
-      currentToken["correct"] = false;
-      currentToken["name"] = asciiUpper2Lower(currentToken["name"]);
+      tokenQueue.addLast(new ParseErrorToken("eof-in-doctype-name"));
+      currentDoctypeToken.correct = false;
+      currentDoctypeToken.name = asciiUpper2Lower(currentDoctypeToken.name);
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
-      currentToken["name"] = '${currentToken["name"]}${data}';
+      currentDoctypeToken.name = '${currentDoctypeToken.name}${data}';
     }
     return true;
   }
@@ -1546,18 +1441,18 @@ class HTMLTokenizer implements Iterator<Map> {
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else if (data === EOF) {
-      currentToken["correct"] = false;
+      currentDoctypeToken.correct = false;
       stream.unget(data);
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-doctype"});
+      tokenQueue.addLast(new ParseErrorToken("eof-in-doctype"));
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
       if (data == "p" || data == "P") {
+        // TODO(jmesserly): would be nice to have a helper for this.
         var matched = true;
         for (var expected in const ["uU", "bB", "lL", "iI", "cC"]) {
           data = stream.char();
-          if (!inStr(data, expected)) {
+          if (data == EOF || !expected.contains(data)) {
             matched = false;
             break;
           }
@@ -1570,7 +1465,7 @@ class HTMLTokenizer implements Iterator<Map> {
         var matched = true;
         for (var expected in const ["yY", "sS", "tT", "eE", "mM"]) {
           data = stream.char();
-          if (!inStr(data, expected)) {
+          if (data == EOF || !expected.contains(data)) {
             matched = false;
             break;
           }
@@ -1586,10 +1481,10 @@ class HTMLTokenizer implements Iterator<Map> {
       // discarded; only the latest character might be '>' or EOF
       // and needs to be ungetted
       stream.unget(data);
-      tokenQueue.addLast({"type": ParseErrorToken,
-          "data": "expected-space-or-right-bracket-in-doctype",
-          "datavars": {"data": data}});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken(
+          "expected-space-or-right-bracket-in-doctype",
+          messageParams: {"data": data}));
+      currentDoctypeToken.correct = false;
       state = bogusDoctypeState;
     }
     return true;
@@ -1600,14 +1495,12 @@ class HTMLTokenizer implements Iterator<Map> {
     if (isWhitespace(data)) {
       state = beforeDoctypePublicIdentifierState;
     } else if (data == "'" || data == '"') {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "unexpected-char-in-doctype"});
+      tokenQueue.addLast(new ParseErrorToken("unexpected-char-in-doctype"));
       stream.unget(data);
       state = beforeDoctypePublicIdentifierState;
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("eof-in-doctype"));
+      currentDoctypeToken.correct = false;
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
@@ -1622,27 +1515,24 @@ class HTMLTokenizer implements Iterator<Map> {
     if (isWhitespace(data)) {
       return true;
     } else if (data == "\"") {
-      currentToken["publicId"] = "";
+      currentDoctypeToken.publicId = "";
       state = doctypePublicIdentifierDoubleQuotedState;
     } else if (data == "'") {
-      currentToken["publicId"] = "";
+      currentDoctypeToken.publicId = "";
       state = doctypePublicIdentifierSingleQuotedState;
     } else if (data == ">") {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "unexpected-end-of-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("unexpected-end-of-doctype"));
+      currentDoctypeToken.correct = false;
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("eof-in-doctype"));
+      currentDoctypeToken.correct = false;
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "unexpected-char-in-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("unexpected-char-in-doctype"));
+      currentDoctypeToken.correct = false;
       state = bogusDoctypeState;
     }
     return true;
@@ -1653,23 +1543,20 @@ class HTMLTokenizer implements Iterator<Map> {
     if (data == '"') {
       state = afterDoctypePublicIdentifierState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                  "data": "invalid-codepoint"});
-      currentToken["publicId"] = "${currentToken["publicId"]}\uFFFD";
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      currentDoctypeToken.publicId = "${currentDoctypeToken.publicId}\uFFFD";
     } else if (data == ">") {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "unexpected-end-of-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("unexpected-end-of-doctype"));
+      currentDoctypeToken.correct = false;
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("eof-in-doctype"));
+      currentDoctypeToken.correct = false;
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
-      currentToken["publicId"] = '${currentToken["publicId"]}${data}';
+      currentDoctypeToken.publicId = '${currentDoctypeToken.publicId}${data}';
     }
     return true;
   }
@@ -1679,23 +1566,20 @@ class HTMLTokenizer implements Iterator<Map> {
     if (data == "'") {
       state = afterDoctypePublicIdentifierState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                          "data": "invalid-codepoint"});
-      currentToken["publicId"] = "${currentToken["publicId"]}\uFFFD";
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      currentDoctypeToken.publicId = "${currentDoctypeToken.publicId}\uFFFD";
     } else if (data == ">") {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "unexpected-end-of-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("unexpected-end-of-doctype"));
+      currentDoctypeToken.correct = false;
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("eof-in-doctype"));
+      currentDoctypeToken.correct = false;
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
-      currentToken["publicId"] = '${currentToken["publicId"]}${data}';
+      currentDoctypeToken.publicId = '${currentDoctypeToken.publicId}${data}';
     }
     return true;
   }
@@ -1708,25 +1592,21 @@ class HTMLTokenizer implements Iterator<Map> {
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else if (data == '"') {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "unexpected-char-in-doctype"});
-      currentToken["systemId"] = "";
+      tokenQueue.addLast(new ParseErrorToken("unexpected-char-in-doctype"));
+      currentDoctypeToken.systemId = "";
       state = doctypeSystemIdentifierDoubleQuotedState;
     } else if (data == "'") {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "unexpected-char-in-doctype"});
-      currentToken["systemId"] = "";
+      tokenQueue.addLast(new ParseErrorToken("unexpected-char-in-doctype"));
+      currentDoctypeToken.systemId = "";
       state = doctypeSystemIdentifierSingleQuotedState;
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("eof-in-doctype"));
+      currentDoctypeToken.correct = false;
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "unexpected-char-in-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("unexpected-char-in-doctype"));
+      currentDoctypeToken.correct = false;
       state = bogusDoctypeState;
     }
     return true;
@@ -1740,21 +1620,19 @@ class HTMLTokenizer implements Iterator<Map> {
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else if (data == '"') {
-      currentToken["systemId"] = "";
+      currentDoctypeToken.systemId = "";
       state = doctypeSystemIdentifierDoubleQuotedState;
     } else if (data == "'") {
-      currentToken["systemId"] = "";
+      currentDoctypeToken.systemId = "";
       state = doctypeSystemIdentifierSingleQuotedState;
     } else if (data == EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("eof-in-doctype"));
+      currentDoctypeToken.correct = false;
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "unexpected-char-in-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("unexpected-char-in-doctype"));
+      currentDoctypeToken.correct = false;
       state = bogusDoctypeState;
     }
     return true;
@@ -1765,14 +1643,12 @@ class HTMLTokenizer implements Iterator<Map> {
     if (isWhitespace(data)) {
       state = beforeDoctypeSystemIdentifierState;
     } else if (data == "'" || data == '"') {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "unexpected-char-in-doctype"});
+      tokenQueue.addLast(new ParseErrorToken("unexpected-char-in-doctype"));
       stream.unget(data);
       state = beforeDoctypeSystemIdentifierState;
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("eof-in-doctype"));
+      currentDoctypeToken.correct = false;
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
@@ -1787,27 +1663,24 @@ class HTMLTokenizer implements Iterator<Map> {
     if (isWhitespace(data)) {
       return true;
     } else if (data == "\"") {
-      currentToken["systemId"] = "";
+      currentDoctypeToken.systemId = "";
       state = doctypeSystemIdentifierDoubleQuotedState;
     } else if (data == "'") {
-      currentToken["systemId"] = "";
+      currentDoctypeToken.systemId = "";
       state = doctypeSystemIdentifierSingleQuotedState;
     } else if (data == ">") {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "unexpected-char-in-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("unexpected-char-in-doctype"));
+      currentDoctypeToken.correct = false;
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("eof-in-doctype"));
+      currentDoctypeToken.correct = false;
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "unexpected-char-in-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("unexpected-char-in-doctype"));
+      currentDoctypeToken.correct = false;
       state = bogusDoctypeState;
     }
     return true;
@@ -1818,23 +1691,20 @@ class HTMLTokenizer implements Iterator<Map> {
     if (data == "\"") {
       state = afterDoctypeSystemIdentifierState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                  "data": "invalid-codepoint"});
-      currentToken["systemId"] = "${currentToken["systemId"]}\uFFFD";
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      currentDoctypeToken.systemId = "${currentDoctypeToken.systemId}\uFFFD";
     } else if (data == ">") {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "unexpected-end-of-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("unexpected-end-of-doctype"));
+      currentDoctypeToken.correct = false;
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("eof-in-doctype"));
+      currentDoctypeToken.correct = false;
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
-      currentToken["systemId"] = '${currentToken["systemId"]}${data}';
+      currentDoctypeToken.systemId = '${currentDoctypeToken.systemId}${data}';
     }
     return true;
   }
@@ -1844,23 +1714,20 @@ class HTMLTokenizer implements Iterator<Map> {
     if (data == "'") {
       state = afterDoctypeSystemIdentifierState;
     } else if (data == "\u0000") {
-      tokenQueue.addLast({"type": ParseErrorToken,
-                  "data": "invalid-codepoint"});
-      currentToken["systemId"] = "${currentToken["systemId"]}\uFFFD";
+      tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+      currentDoctypeToken.systemId = "${currentDoctypeToken.systemId}\uFFFD";
     } else if (data == ">") {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "unexpected-end-of-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("unexpected-end-of-doctype"));
+      currentDoctypeToken.correct = false;
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("eof-in-doctype"));
+      currentDoctypeToken.correct = false;
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
-      currentToken["systemId"] = '${currentToken["systemId"]}${data}';
+      currentDoctypeToken.systemId = '${currentDoctypeToken.systemId}${data}';
     }
     return true;
   }
@@ -1873,14 +1740,12 @@ class HTMLTokenizer implements Iterator<Map> {
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else if (data === EOF) {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "eof-in-doctype"});
-      currentToken["correct"] = false;
+      tokenQueue.addLast(new ParseErrorToken("eof-in-doctype"));
+      currentDoctypeToken.correct = false;
       tokenQueue.addLast(currentToken);
       state = dataState;
     } else {
-      tokenQueue.addLast({"type": ParseErrorToken, "data":
-          "unexpected-char-in-doctype"});
+      tokenQueue.addLast(new ParseErrorToken("unexpected-char-in-doctype"));
       state = bogusDoctypeState;
     }
     return true;
@@ -1902,42 +1767,35 @@ class HTMLTokenizer implements Iterator<Map> {
 
   bool cdataSectionState() {
     var data = [];
+    int matchedEnd = 0;
     while (true) {
-      data.add(stream.charsUntil("]"));
-      var charStack = [];
-
-      bool matched = false;
-      for (var expected in const ["]", "]", ">"]) {
-        charStack.add(stream.char());
-        matched = true;
-        if (charStack.last() == EOF) {
-          data.addAll(slice(charStack, 0, -1));
-          break;
-        } else if (charStack.last() != expected) {
-          matched = false;
-          data.addAll(charStack);
-          break;
-        }
-      }
-
-      if (matched) {
+      var ch = stream.char();
+      if (ch == EOF) {
         break;
       }
+      // Deal with null here rather than in the parser
+      if (ch == "\u0000") {
+        tokenQueue.addLast(new ParseErrorToken("invalid-codepoint"));
+        ch = "\uFFFD";
+      }
+      data.add(ch);
+      // TODO(jmesserly): it'd be nice if we had an easier way to match the end,
+      // perhaps with a "peek" API.
+      if (ch == "]" && matchedEnd < 2) {
+        matchedEnd++;
+      } else if (ch == ">" && matchedEnd == 2) {
+        // Remove "]]>" from the end.
+        data.removeLast();
+        data.removeLast();
+        data.removeLast();
+        break;
+      } else {
+        matchedEnd = 0;
+      }
     }
 
-    var dataStr = joinStr(data);
-    // Deal with null here rather than in the parser
-    var nullCount = data.filter((c) => c == "\u0000").length;
-    if (nullCount > 0) {
-      for (int i = 0; i < nullCount; i++) {
-        tokenQueue.addLast({"type": ParseErrorToken,
-                            "data": "invalid-codepoint"});
-      }
-      dataStr = dataStr.replaceAll("\u0000", "\uFFFD");
-    }
-    if (dataStr.length > 0) {
-      tokenQueue.addLast({"type": CharactersToken,
-                          "data": dataStr});
+    if (data.length > 0) {
+      tokenQueue.addLast(new CharactersToken(joinStr(data)));
     }
     state = dataState;
     return true;

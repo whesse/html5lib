@@ -2,11 +2,11 @@
 
 #import('dart:io');
 #import('package:unittest/unittest.dart');
-#import('../constants.dart');
+#import('../lib/constants.dart');
+#import('../lib/utils.dart');
+#import('../treebuilders/simpletree.dart');
 #import('../html5parser.dart');
 #import('../tokenizer.dart');
-#import('../utils.dart');
-#import('../treebuilders/simpletree.dart');
 #import('support.dart');
 
 // Run the parse error checks
@@ -74,12 +74,6 @@ void runParserTest(String groupName, String innerHTML, String input,
     expected = namespaceHtml(expected);
   }
 
-  if (groupName == 'plain-text-unsafe' && output != expected) {
-    // TODO(jmesserly): investigate why these are failing.
-    print('SKIP(needsfix): $groupName $input');
-    return;
-  }
-
   expect(output, equals(expected), reason:
       "\n\nInput:\n$input\n\nExpected:\n$expected\n\nReceived:\n$output");
 
@@ -110,8 +104,7 @@ void main() {
           }
 
           for (var treeCtor in treeTypes.getValues()) {
-            // TOOD(jmesserly): fix namespaceHTMLElements
-            for (var namespaceHTMLElements in const [true, false]) {
+            for (var namespaceHTMLElements in const [false, true]) {
               test(input, () {
                 runParserTest(testName, innerHTML, input, expected, errors,
                     treeCtor, namespaceHTMLElements);

@@ -1,17 +1,22 @@
 /** Internals to the tree builders. */
 #library('base');
 
-#import('../constants.dart');
-#import('../utils.dart');
-#import('../utils/list_proxy.dart');
+#import('../lib/constants.dart');
+#import('../lib/list_proxy.dart');
+#import('../lib/token.dart');
+#import('../lib/utils.dart');
 
 // The scope markers are inserted when entering object elements,
 // marquees, table cells, and table captions, and are used to prevent formatting
 // from "leaking" into tables, object elements, and marquees.
 final Marker = null;
 
+// TODO(jmesserly): the generic type here is strange. But it seems the only
+// way to get the right type on childNodes. (and overriding that field didn't
+// work on the VM in checked mode.
+// We should probably get rid of this entire abstraction layer, though.
 /** Node representing an item in the tree. */
-class Node {
+class Node<T extends Node> {
   /** The tag name associated with the node. */
   final String name;
 
@@ -25,9 +30,9 @@ class Node {
    * A list of child nodes of the current node. This must
    * include all elements but not necessarily other node types.
    */
-  final List<Node> nodes;
+  final List<T> nodes;
 
-  Node(this.name) : attributes = {}, nodes = <Node>[];
+  Node(this.name) : attributes = {}, nodes = <T>[];
 
   // TODO(jmesserly): move code away from $dom methods
   /**
@@ -289,8 +294,8 @@ abstract class TreeBuilder<
       var clone = entry.clone(); // Mainly to get a new copy of the attributes
 
       // Step 9
-      var element = insertElement({"type": "StartTag", "name": clone.name,
-          "namespace": clone.namespace, "data": clone.attributes});
+      var element = insertElement(new StartTagToken(clone.name,
+          namespace: clone.namespace, data: clone.attributes));
 
       // Step 10
       activeFormattingElements[i] = element;
@@ -327,49 +332,45 @@ abstract class TreeBuilder<
     return null;
   }
 
-  void insertRoot(Map token) {
+  void insertRoot(Token token) {
     var element = createElement(token);
     openElements.add(element);
     document.$dom_appendChild(element);
   }
 
-  void insertDoctype(Map token) {
-    var name = token["name"];
-    var publicId = token["publicId"];
-    var systemId = token["systemId"];
-
-    var doctype = newDoctype(name, publicId, systemId);
+  void insertDoctype(DoctypeToken token) {
+    var doctype = newDoctype(token.name, token.publicId, token.systemId);
     document.$dom_appendChild(doctype);
   }
 
-  void insertComment(Map token, [Node parent]) {
+  void insertComment(Token token, [Node parent]) {
     if (parent == null) {
       parent = openElements.last();
     }
-    parent.$dom_appendChild(newComment(token["data"]));
+    parent.$dom_appendChild(newComment(token.data));
   }
 
     /** Create an element but don't insert it anywhere */
-  Element createElement(Map token) {
-    var name = token["name"];
-    var namespace = token["namespace"];
+  Element createElement(StartTagToken token) {
+    var name = token.name;
+    var namespace = token.namespace;
     if (namespace == null) namespace = defaultNamespace;
     var element = newElement(name, namespace);
-    element.attributes = token["data"];
+    element.attributes = token.data;
     return element;
   }
 
-  Element insertElement(Map token) {
+  Element insertElement(StartTagToken token) {
     if (insertFromTable) return insertElementTable(token);
     return insertElementNormal(token);
   }
 
-  Element insertElementNormal(token) {
-    var name = token["name"];
-    var namespace = token["namespace"];
+  Element insertElementNormal(StartTagToken token) {
+    var name = token.name;
+    var namespace = token.namespace;
     if (namespace == null) namespace = defaultNamespace;
     Element element = newElement(name, namespace);
-    element.attributes = token["data"];
+    element.attributes = token.data;
     openElements.last().$dom_appendChild(element);
     openElements.add(element);
     return element;

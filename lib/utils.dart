@@ -44,12 +44,6 @@ bool startsWithAny(String str, List<String> prefixes) {
   return false;
 }
 
-/** Simple way of testing if [char] is in [characters]. */
-bool inStr(String char, String characters) {
-  if (char == null) return false;
-  return characters.indexOf(char) >= 0;
-}
-
 String joinStr(List<String> strings) => Strings.join(strings, '');
 
 // Like the python [:] operator.

@@ -2,11 +2,10 @@
 
 #import('dart:io');
 #import('dart:utf');
-#import('codecs.dart', prefix: 'codecs');
+#import('char_encodings.dart');
 #import('constants.dart');
 #import('utils.dart');
 #import('encoding_parser.dart');
-
 
 /**
  * Provides a unicode stream of characters to the HTMLTokenizer.
@@ -41,7 +40,7 @@ class HTMLInputStream {
   Iterator<int> dataStream;
 
   /** Cache for charsUntil() */
-  Map<Dynamic, RegExp> charsUntilRegEx;
+  Map<Pair, RegExp> charsUntilRegEx;
 
   List<String> errors;
 
@@ -166,7 +165,7 @@ class HTMLInputStream {
    */
   String detectBOM() {
     // Try detecting the BOM using bytes from the string
-    if (codecs.hasUtf8Bom(rawBytes)) {
+    if (hasUtf8Bom(rawBytes)) {
       return 'utf-8';
     }
     // Note: we don't need to remember whether it was big or little endian
@@ -248,7 +247,7 @@ class HTMLInputStream {
 
     if (dataStream == null) {
       // perform the initial decode
-      dataStream = codecs.decodeBytes(charEncodingName, rawBytes).iterator();
+      dataStream = decodeBytes(charEncodingName, rawBytes).iterator();
     }
     var charCodes = [];
     for (int i = 0; i < readSize && dataStream.hasNext(); i++) {

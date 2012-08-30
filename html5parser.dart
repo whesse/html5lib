@@ -3,10 +3,11 @@
 #import('dart:math');
 #import('package:logging/logging.dart');
 #import('treebuilders/simpletree.dart');
-#import('encoding_parser.dart');
+#import('lib/constants.dart');
+#import('lib/encoding_parser.dart');
+#import('lib/token.dart');
+#import('lib/utils.dart');
 #import('tokenizer.dart');
-#import('utils.dart');
-#import('constants.dart');
 
 // TODO(jmesserly): these APIs, as well as the HTMLParser contructor and
 // HTMLParser.parse and parseFragment were changed a bit to avoid passing a
@@ -85,6 +86,31 @@ class HTMLParser {
 
   HTMLTokenizer tokenizer;
 
+  // These fields hold the different phase singletons. At any given time one
+  // of them will be active.
+  InitialPhase _initialPhase;
+  BeforeHtmlPhase _beforeHtmlPhase;
+  BeforeHeadPhase _beforeHeadPhase;
+  InHeadPhase _inHeadPhase;
+  AfterHeadPhase _afterHeadPhase;
+  InBodyPhase _inBodyPhase;
+  TextPhase _textPhase;
+  InTablePhase _inTablePhase;
+  InTableTextPhase _inTableTextPhase;
+  InCaptionPhase _inCaptionPhase;
+  InColumnGroupPhase _inColumnGroupPhase;
+  InTableBodyPhase _inTableBodyPhase;
+  InRowPhase _inRowPhase;
+  InCellPhase _inCellPhase;
+  InSelectPhase _inSelectPhase;
+  InSelectInTablePhase _inSelectInTablePhase;
+  InForeignContentPhase _inForeignContentPhase;
+  AfterBodyPhase _afterBodyPhase;
+  InFramesetPhase _inFramesetPhase;
+  AfterFramesetPhase _afterFramesetPhase;
+  AfterAfterBodyPhase _afterAfterBodyPhase;
+  AfterAfterFramesetPhase _afterAfterFramesetPhase;
+
   /**
    * Create a new HTMLParser and configure the [tree] builder and [strict] mode.
    */
@@ -92,33 +118,30 @@ class HTMLParser {
       : tree = tree != null ? tree : new TreeBuilder(true),
         errors = <ParseError>[] {
 
-    // TODO(jmesserly): optimize. These should all be fields.
-    phases = {
-      "initial": new InitialPhase(this),
-      "beforeHtml": new BeforeHtmlPhase(this),
-      "beforeHead": new BeforeHeadPhase(this),
-      "inHead": new InHeadPhase(this),
-      // XXX "inHeadNoscript": new InHeadNoScriptPhase(this),
-      "afterHead": new AfterHeadPhase(this),
-      "inBody": new InBodyPhase(this),
-      "text": new TextPhase(this),
-      "inTable": new InTablePhase(this),
-      "inTableText": new InTableTextPhase(this),
-      "inCaption": new InCaptionPhase(this),
-      "inColumnGroup": new InColumnGroupPhase(this),
-      "inTableBody": new InTableBodyPhase(this),
-      "inRow": new InRowPhase(this),
-      "inCell": new InCellPhase(this),
-      "inSelect": new InSelectPhase(this),
-      "inSelectInTable": new InSelectInTablePhase(this),
-      "inForeignContent": new InForeignContentPhase(this),
-      "afterBody": new AfterBodyPhase(this),
-      "inFrameset": new InFramesetPhase(this),
-      "afterFrameset": new AfterFramesetPhase(this),
-      "afterAfterBody": new AfterAfterBodyPhase(this),
-      "afterAfterFrameset": new AfterAfterFramesetPhase(this),
-      // XXX after after frameset
-    };
+    _initialPhase = new InitialPhase(this);
+    _beforeHtmlPhase = new BeforeHtmlPhase(this);
+    _beforeHeadPhase = new BeforeHeadPhase(this);
+    _inHeadPhase = new InHeadPhase(this);
+      // XXX "inHeadNoscript": new InHeadNoScriptPhase(this);
+    _afterHeadPhase = new AfterHeadPhase(this);
+    _inBodyPhase = new InBodyPhase(this);
+    _textPhase = new TextPhase(this);
+    _inTablePhase = new InTablePhase(this);
+    _inTableTextPhase = new InTableTextPhase(this);
+    _inCaptionPhase = new InCaptionPhase(this);
+    _inColumnGroupPhase = new InColumnGroupPhase(this);
+    _inTableBodyPhase = new InTableBodyPhase(this);
+    _inRowPhase = new InRowPhase(this);
+    _inCellPhase = new InCellPhase(this);
+    _inSelectPhase = new InSelectPhase(this);
+    _inSelectInTablePhase = new InSelectInTablePhase(this);
+    _inForeignContentPhase = new InForeignContentPhase(this);
+    _afterBodyPhase = new AfterBodyPhase(this);
+    _inFramesetPhase = new InFramesetPhase(this);
+    _afterFramesetPhase = new AfterFramesetPhase(this);
+    _afterAfterBodyPhase = new AfterAfterBodyPhase(this);
+    _afterAfterFramesetPhase = new AfterAfterFramesetPhase(this);
+    // XXX after after frameset
   }
 
   /**
@@ -192,12 +215,12 @@ class HTMLParser {
         // state already is data state
         // tokenizer.state = tokenizer.dataState;
       }
-      phase = phases["beforeHtml"];
-      (phase as BeforeHtmlPhase).insertHtmlElement();
+      phase = _beforeHtmlPhase;
+      _beforeHtmlPhase.insertHtmlElement();
       resetInsertionMode();
     } else {
       innerHTML = null;
-      phase = phases["initial"];
+      phase = _initialPhase;
     }
 
     lastPhase = null;
@@ -210,7 +233,7 @@ class HTMLParser {
         element.namespace == Namespaces.mathml) {
       var enc = element.attributes["encoding"];
       if (enc != null) enc = asciiUpper2Lower(enc);
-      return enc != null && (enc == "text/html" || enc == "application/xhtml+xml");
+      return enc == "text/html" || enc == "application/xhtml+xml";
     } else {
       return htmlIntegrationPointElements.indexOf(
           new Pair(element.namespace, element.name)) >= 0;
@@ -226,16 +249,33 @@ class HTMLParser {
     if (tree.openElements.length == 0) return false;
 
     var node = tree.openElements.last();
+    if (node.namespace == tree.defaultNamespace) return false;
 
-    return !(node.namespace == tree.defaultNamespace ||
-            (isMathMLTextIntegrationPoint(node) &&
-             (type == StartTagToken &&
-              token["name"] != "mglyph" && token["name"] != "malignmark") ||
-             (type == CharactersToken || type == SpaceCharactersToken)) ||
-            (node.namespace == Namespaces.mathml &&
-             node.name == "annotation-xml" && token["name"] == "svg") ||
-            (isHTMLIntegrationPoint(node) && (type == StartTagToken ||
-             type == CharactersToken || type == SpaceCharactersToken)));
+    if (isMathMLTextIntegrationPoint(node)) {
+      if (type == TokenKind.startTag &&
+          token.name != "mglyph" &&
+          token.name != "malignmark")  {
+        return false;
+      }
+      if (type == TokenKind.characters || type == TokenKind.spaceCharacters) {
+        return false;
+      }
+    }
+
+    if (node.name == "annotation-xml" && type == TokenKind.startTag &&
+        token.name == "svg") {
+      return false;
+    }
+
+    if (isHTMLIntegrationPoint(node)) {
+      if (type == TokenKind.startTag ||
+          type == TokenKind.characters ||
+          type == TokenKind.spaceCharacters) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   void mainLoop() {
@@ -244,44 +284,47 @@ class HTMLParser {
       var newToken = token;
       int type;
       while (newToken !== null) {
-        type = newToken["type"];
+        type = newToken.kind;
 
-        if (type == ParseErrorToken) {
-          parseError(newToken["data"], newToken["datavars"]);
+        // Note: avoid "is" test here, see http://dartbug.com/4795
+        if (type == TokenKind.parseError) {
+          ParseErrorToken error = newToken;
+          parseError(error.data, error.messageParams);
           newToken = null;
         } else {
           Phase phase_ = phase;
           if (inForeignContent(token, type)) {
-            phase_ = phases["inForeignContent"];
+            phase_ = _inForeignContentPhase;
           }
 
           switch (type) {
-            case CharactersToken:
+            case TokenKind.characters:
               newToken = phase_.processCharacters(newToken);
               break;
-            case SpaceCharactersToken:
+            case TokenKind.spaceCharacters:
               newToken = phase_.processSpaceCharacters(newToken);
               break;
-            case StartTagToken:
+            case TokenKind.startTag:
               newToken = phase_.processStartTag(newToken);
               break;
-            case EndTagToken:
+            case TokenKind.endTag:
               newToken = phase_.processEndTag(newToken);
               break;
-            case CommentToken:
+            case TokenKind.comment:
               newToken = phase_.processComment(newToken);
               break;
-            case DoctypeToken:
+            case TokenKind.doctype:
               newToken = phase_.processDoctype(newToken);
               break;
           }
         }
       }
 
-      if (type == StartTagToken && token["selfClosing"]
-          && !token["selfClosingAcknowledged"]) {
-        parseError("non-void-element-with-trailing-solidus",
-            {"name": token["name"]});
+      if (token is StartTagToken) {
+        if (token.selfClosing && !token.selfClosingAcknowledged) {
+          parseError("non-void-element-with-trailing-solidus",
+              {"name": token.name});
+        }
       }
     }
 
@@ -307,21 +350,21 @@ class HTMLParser {
   }
 
   /** HTML5 specific normalizations to the token stream. */
-  Map normalizeToken(Map token) {
-    if (token["type"] == StartTagToken) {
-      token["data"] = makeDict(token["data"]);
+  Token normalizeToken(Token token) {
+    if (token is StartTagToken) {
+      token.data = makeDict(token.data);
     }
     return token;
   }
 
-  void adjustMathMLAttributes(Map token) {
-    var orig = token["data"].remove("definitionurl");
+  void adjustMathMLAttributes(StartTagToken token) {
+    var orig = token.data.remove("definitionurl");
     if (orig != null) {
-      token["data"]["definitionURL"] = orig;
+      token.data["definitionURL"] = orig;
     }
   }
 
-  void adjustSVGAttributes(Map token) {
+  void adjustSVGAttributes(Token token) {
     final replacements = const {
       "attributename":"attributeName",
       "attributetype":"attributeType",
@@ -386,15 +429,15 @@ class HTMLParser {
       "ychannelselector":"yChannelSelector",
       "zoomandpan":"zoomAndPan"
     };
-    for (var originalName in token["data"].getKeys()) {
+    for (var originalName in token.data.getKeys()) {
       var svgName = replacements[originalName];
       if (svgName != null) {
-        token["data"][svgName] = token["data"].remove(originalName);
+        token.data[svgName] = token.data.remove(originalName);
       }
     }
   }
 
-  void adjustForeignAttributes(Map token) {
+  void adjustForeignAttributes(Token token) {
     // TODO(jmesserly): I don't like mixing non-string objects with strings in
     // the Node.attributes Map. Is there another solution?
     final replacements = const {
@@ -414,10 +457,10 @@ class HTMLParser {
       "xmlns:xlink": const AttributeName("xmlns", "xlink", Namespaces.xmlns)
     };
 
-    for (var originalName in token["data"].getKeys()) {
+    for (var originalName in token.data.getKeys()) {
       var foreignName = replacements[originalName];
       if (foreignName != null) {
-        token["data"][foreignName] = token["data"].remove(originalName);
+        token.data[foreignName] = token.data.remove(originalName);
       }
     }
   }
@@ -425,29 +468,11 @@ class HTMLParser {
   void resetInsertionMode() {
     // The name of this method is mostly historical. (It's also used in the
     // specification.)
-    var last = false;
-    final newModes = const {
-      "select":"inSelect",
-      "td":"inCell",
-      "th":"inCell",
-      "tr":"inRow",
-      "tbody":"inTableBody",
-      "thead":"inTableBody",
-      "tfoot":"inTableBody",
-      "caption":"inCaption",
-      "colgroup":"inColumnGroup",
-      "table":"inTable",
-      "head":"inBody",
-      "body":"inBody",
-      "frameset":"inFrameset",
-      "html":"beforeHead"
-    };
-    var newPhase = null;
     for (var node in reversed(tree.openElements)) {
       var nodeName = node.name;
-      if (node == tree.openElements[0]) {
+      bool last = node == tree.openElements[0];
+      if (last) {
         assert(innerHTMLMode);
-        last = true;
         nodeName = innerHTML;
       }
       // Check for conditions that should only happen in the innerHTML
@@ -460,23 +485,31 @@ class HTMLParser {
       if (!last && node.namespace != tree.defaultNamespace) {
         continue;
       }
-      var newMode = newModes[nodeName];
-      if (newMode != null) {
-        newPhase = phases[newMode];
-        break;
-      } else if (last) {
-        newPhase = phases["inBody"];
-        break;
+      switch (nodeName) {
+        case "select": phase = _inSelectPhase; return;
+        case "td": phase = _inCellPhase; return;
+        case "th": phase = _inCellPhase; return;
+        case "tr": phase = _inRowPhase; return;
+        case "tbody": phase = _inTableBodyPhase; return;
+        case "thead": phase = _inTableBodyPhase; return;
+        case "tfoot": phase = _inTableBodyPhase; return;
+        case "caption": phase = _inCaptionPhase; return;
+        case "colgroup": phase = _inColumnGroupPhase; return;
+        case "table": phase = _inTablePhase; return;
+        case "head": phase = _inBodyPhase; return;
+        case "body": phase = _inBodyPhase; return;
+        case "frameset": phase = _inFramesetPhase; return;
+        case "html": phase = _beforeHeadPhase; return;
       }
     }
-    phase = newPhase;
+    phase = _inBodyPhase;
   }
 
   /**
    * Generic RCDATA/RAWTEXT Parsing algorithm
    * [contentType] - RCDATA or RAWTEXT
    */
-  void parseRCDataRawtext(Map token, String contentType) {
+  void parseRCDataRawtext(Token token, String contentType) {
     assert(contentType == "RAWTEXT" || contentType == "RCDATA");
 
     var element = tree.insertElement(token);
@@ -488,7 +521,7 @@ class HTMLParser {
     }
 
     originalPhase = phase;
-    phase = phases["text"];
+    phase = _textPhase;
   }
 }
 
@@ -516,41 +549,41 @@ class Phase {
     throw const NotImplementedException();
   }
 
-  Map processComment(token) {
+  Token processComment(CommentToken token) {
     // For most phases the following is correct. Where it's not it will be
     // overridden.
     tree.insertComment(token, tree.openElements.last());
   }
 
-  Map processDoctype(token) {
+  Token processDoctype(DoctypeToken token) {
     parser.parseError("unexpected-doctype");
   }
 
-  Map processCharacters(token) {
-    tree.insertText(token["data"]);
+  Token processCharacters(CharactersToken token) {
+    tree.insertText(token.data);
   }
 
-  Map processSpaceCharacters(token) {
-    tree.insertText(token["data"]);
+  Token processSpaceCharacters(SpaceCharactersToken token) {
+    tree.insertText(token.data);
   }
 
-  Map processStartTag(token) {
+  Token processStartTag(StartTagToken token) {
     throw const NotImplementedException();
   }
 
-  Map startTagHtml(token) {
-    if (parser.firstStartTag == false && token["name"] == "html") {
+  Token startTagHtml(StartTagToken token) {
+    if (parser.firstStartTag == false && token.name == "html") {
        parser.parseError("non-html-root");
     }
     // XXX Need a check here to see if the first start tag token emitted is
     // this token... If it's not, invoke parser.parseError().
-    token["data"].forEach((attr, value) {
+    token.data.forEach((attr, value) {
       tree.openElements[0].attributes.putIfAbsent(attr, () => value);
     });
     parser.firstStartTag = false;
   }
 
-  Map processEndTag(token) {
+  Token processEndTag(EndTagToken token) {
     throw const NotImplementedException();
   }
 
@@ -566,18 +599,18 @@ class Phase {
 class InitialPhase extends Phase {
   InitialPhase(parser) : super(parser);
 
-  Map processSpaceCharacters(token) {
+  Token processSpaceCharacters(SpaceCharactersToken token) {
   }
 
-  Map processComment(token) {
+  Token processComment(CommentToken token) {
     tree.insertComment(token, tree.document);
   }
 
-  Map processDoctype(token) {
-    var name = token["name"];
-    var publicId = token["publicId"];
-    var systemId = token["systemId"];
-    var correct = token["correct"];
+  Token processDoctype(DoctypeToken token) {
+    var name = token.name;
+    String publicId = token.publicId;
+    var systemId = token.systemId;
+    var correct = token.correct;
 
     if ((name != "html" || publicId != null ||
         systemId != null && systemId != "about:legacy-compat")) {
@@ -594,7 +627,7 @@ class InitialPhase extends Phase {
       publicId = asciiUpper2Lower(publicId);
     }
 
-    if (!correct || token["name"] != "html"
+    if (!correct || token.name != "html"
         || startsWithAny(publicId, const [
           "+//silmaril//dtd html pro v0r11 19970101//",
           "-//advasoft ltd//dtd html 3.0 aswedit + extensions//",
@@ -670,30 +703,30 @@ class InitialPhase extends Phase {
           systemId != null) {
       parser.compatMode = "limited quirks";
     }
-    parser.phase = parser.phases["beforeHtml"];
+    parser.phase = parser._beforeHtmlPhase;
   }
 
   void anythingElse() {
     parser.compatMode = "quirks";
-    parser.phase = parser.phases["beforeHtml"];
+    parser.phase = parser._beforeHtmlPhase;
   }
 
-  Map processCharacters(token) {
+  Token processCharacters(CharactersToken token) {
     parser.parseError("expected-doctype-but-got-chars");
     anythingElse();
     return token;
   }
 
-  Map processStartTag(token) {
+  Token processStartTag(StartTagToken token) {
     parser.parseError("expected-doctype-but-got-start-tag",
-        {"name": token["name"]});
+        {"name": token.name});
     anythingElse();
     return token;
   }
 
-  Map processEndTag(token) {
+  Token processEndTag(EndTagToken token) {
     parser.parseError("expected-doctype-but-got-end-tag",
-        {"name": token["name"]});
+        {"name": token.name});
     anythingElse();
     return token;
   }
@@ -711,8 +744,8 @@ class BeforeHtmlPhase extends Phase {
 
   // helper methods
   void insertHtmlElement() {
-    tree.insertRoot(impliedTagToken("html", "StartTag"));
-    parser.phase = parser.phases["beforeHead"];
+    tree.insertRoot(new StartTagToken("html", data: {}));
+    parser.phase = parser._beforeHeadPhase;
   }
 
   // other
@@ -721,34 +754,34 @@ class BeforeHtmlPhase extends Phase {
     return true;
   }
 
-  Map processComment(token) {
+  Token processComment(CommentToken token) {
     tree.insertComment(token, tree.document);
   }
 
-  Map processSpaceCharacters(token) {
+  Token processSpaceCharacters(SpaceCharactersToken token) {
   }
 
-  Map processCharacters(token) {
+  Token processCharacters(CharactersToken token) {
     insertHtmlElement();
     return token;
   }
 
-  Map processStartTag(token) {
-    if (token["name"] == "html") {
+  Token processStartTag(StartTagToken token) {
+    if (token.name == "html") {
       parser.firstStartTag = true;
     }
     insertHtmlElement();
     return token;
   }
 
-  Map processEndTag(token) {
-    switch (token["name"]) {
+  Token processEndTag(EndTagToken token) {
+    switch (token.name) {
       case "head": case "body": case "html": case "br":
         insertHtmlElement();
         return token;
       default:
         parser.parseError("unexpected-end-tag-before-html",
-            {"name": token["name"]});
+            {"name": token.name});
         return null;
     }
   }
@@ -758,16 +791,16 @@ class BeforeHtmlPhase extends Phase {
 class BeforeHeadPhase extends Phase {
   BeforeHeadPhase(parser) : super(parser);
 
-  processStartTag(token) {
-    switch (token['name']) {
+  processStartTag(StartTagToken token) {
+    switch (token.name) {
       case 'html': return startTagHtml(token);
       case 'head': return startTagHead(token);
       default: return startTagOther(token);
     }
   }
 
-  processEndTag(token) {
-    switch (token['name']) {
+  processEndTag(EndTagToken token) {
+    switch (token.name) {
       case "head": case "body": case "html": case "br":
         return endTagImplyHead(token);
       default: return endTagOther(token);
@@ -775,49 +808,49 @@ class BeforeHeadPhase extends Phase {
   }
 
   bool processEOF() {
-    startTagHead(impliedTagToken("head", "StartTag"));
+    startTagHead(new StartTagToken("head", data: {}));
     return true;
   }
 
-  Map processSpaceCharacters(token) {
+  Token processSpaceCharacters(SpaceCharactersToken token) {
   }
 
-  Map processCharacters(token) {
-    startTagHead(impliedTagToken("head", "StartTag"));
+  Token processCharacters(CharactersToken token) {
+    startTagHead(new StartTagToken("head", data: {}));
     return token;
   }
 
-  Map startTagHtml(token) {
-    return parser.phases["inBody"].processStartTag(token);
+  Token startTagHtml(StartTagToken token) {
+    return parser._inBodyPhase.processStartTag(token);
   }
 
-  void startTagHead(token) {
+  void startTagHead(StartTagToken token) {
     tree.insertElement(token);
     tree.headPointer = tree.openElements.last();
-    parser.phase = parser.phases["inHead"];
+    parser.phase = parser._inHeadPhase;
   }
 
-  Map startTagOther(token) {
-    startTagHead(impliedTagToken("head", "StartTag"));
+  Token startTagOther(StartTagToken token) {
+    startTagHead(new StartTagToken("head", data: {}));
     return token;
   }
 
-  Map endTagImplyHead(token) {
-    startTagHead(impliedTagToken("head", "StartTag"));
+  Token endTagImplyHead(EndTagToken token) {
+    startTagHead(new StartTagToken("head", data: {}));
     return token;
   }
 
-  void endTagOther(token) {
+  void endTagOther(EndTagToken token) {
     parser.parseError("end-tag-after-implied-root",
-      {"name": token["name"]});
+        {"name": token.name});
   }
 }
 
 class InHeadPhase extends Phase {
   InHeadPhase(parser) : super(parser);
 
-  processStartTag(token) {
-    switch (token['name']) {
+  processStartTag(StartTagToken token) {
+    switch (token.name) {
       case "html": return startTagHtml(token);
       case "title": return startTagTitle(token);
       case "noscript": case "noframes": case "style":
@@ -831,8 +864,8 @@ class InHeadPhase extends Phase {
     }
   }
 
-  processEndTag(token) {
-    switch (token['name']) {
+  processEndTag(EndTagToken token) {
+    switch (token.name) {
       case "head": return endTagHead(token);
       case "br": case "html": case "body": return endTagHtmlBodyBr(token);
       default: return endTagOther(token);
@@ -845,31 +878,31 @@ class InHeadPhase extends Phase {
     return true;
   }
 
-  Map processCharacters(token) {
+  Token processCharacters(CharactersToken token) {
     anythingElse();
     return token;
   }
 
-  Map startTagHtml(token) {
-    return parser.phases["inBody"].processStartTag(token);
+  Token startTagHtml(StartTagToken token) {
+    return parser._inBodyPhase.processStartTag(token);
   }
 
-  void startTagHead(token) {
+  void startTagHead(StartTagToken token) {
     parser.parseError("two-heads-are-not-better-than-one");
   }
 
-  void startTagBaseLinkCommand(token) {
+  void startTagBaseLinkCommand(StartTagToken token) {
     tree.insertElement(token);
     tree.openElements.removeLast();
-    token["selfClosingAcknowledged"] = true;
+    token.selfClosingAcknowledged = true;
   }
 
-  void startTagMeta(token) {
+  void startTagMeta(StartTagToken token) {
     tree.insertElement(token);
     tree.openElements.removeLast();
-    token["selfClosingAcknowledged"] = true;
+    token.selfClosingAcknowledged = true;
 
-    var attributes = token["data"];
+    var attributes = token.data;
     if (!parser.tokenizer.stream.charEncodingCertain) {
       var charset = attributes["charset"];
       var content = attributes["content"];
@@ -883,44 +916,44 @@ class InHeadPhase extends Phase {
     }
   }
 
-  void startTagTitle(token) {
+  void startTagTitle(StartTagToken token) {
     parser.parseRCDataRawtext(token, "RCDATA");
   }
 
-  void startTagNoScriptNoFramesStyle(token) {
+  void startTagNoScriptNoFramesStyle(StartTagToken token) {
     // Need to decide whether to implement the scripting-disabled case
     parser.parseRCDataRawtext(token, "RAWTEXT");
   }
 
-  void startTagScript(token) {
+  void startTagScript(StartTagToken token) {
     tree.insertElement(token);
     parser.tokenizer.state = parser.tokenizer.scriptDataState;
     parser.originalPhase = parser.phase;
-    parser.phase = parser.phases["text"];
+    parser.phase = parser._textPhase;
   }
 
-  Map startTagOther(token) {
+  Token startTagOther(StartTagToken token) {
     anythingElse();
     return token;
   }
 
-  void endTagHead(token) {
+  void endTagHead(EndTagToken token) {
     var node = parser.tree.openElements.removeLast();
     assert(node.name == "head");
-    parser.phase = parser.phases["afterHead"];
+    parser.phase = parser._afterHeadPhase;
   }
 
-  Map endTagHtmlBodyBr(token) {
+  Token endTagHtmlBodyBr(EndTagToken token) {
     anythingElse();
     return token;
   }
 
-  void endTagOther(token) {
-    parser.parseError("unexpected-end-tag", {"name": token["name"]});
+  void endTagOther(EndTagToken token) {
+    parser.parseError("unexpected-end-tag", {"name": token.name});
   }
 
   void anythingElse() {
-    endTagHead(impliedTagToken("head"));
+    endTagHead(new EndTagToken("head", data: {}));
   }
 }
 
@@ -933,8 +966,8 @@ class InHeadPhase extends Phase {
 class AfterHeadPhase extends Phase {
   AfterHeadPhase(parser) : super(parser);
 
-  processStartTag(token) {
-    switch (token['name']) {
+  processStartTag(StartTagToken token) {
+    switch (token.name) {
       case "html": return startTagHtml(token);
       case "body": return startTagBody(token);
       case "frameset": return startTagFrameset(token);
@@ -946,8 +979,8 @@ class AfterHeadPhase extends Phase {
     }
   }
 
-  processEndTag(token) {
-    switch (token['name']) {
+  processEndTag(EndTagToken token) {
+    switch (token.name) {
       case "body": case "html": case "br":
         return endTagHtmlBodyBr(token);
       default: return endTagOther(token);
@@ -959,31 +992,31 @@ class AfterHeadPhase extends Phase {
     return true;
   }
 
-  Map processCharacters(token) {
+  Token processCharacters(CharactersToken token) {
     anythingElse();
     return token;
   }
 
-  Map startTagHtml(token) {
-    return parser.phases["inBody"].processStartTag(token);
+  Token startTagHtml(StartTagToken token) {
+    return parser._inBodyPhase.processStartTag(token);
   }
 
-  void startTagBody(token) {
+  void startTagBody(StartTagToken token) {
     parser.framesetOK = false;
     tree.insertElement(token);
-    parser.phase = parser.phases["inBody"];
+    parser.phase = parser._inBodyPhase;
   }
 
-  void startTagFrameset(token) {
+  void startTagFrameset(StartTagToken token) {
     tree.insertElement(token);
-    parser.phase = parser.phases["inFrameset"];
+    parser.phase = parser._inFramesetPhase;
   }
 
-  void startTagFromHead(token) {
+  void startTagFromHead(StartTagToken token) {
     parser.parseError("unexpected-start-tag-out-of-my-head",
-      {"name": token["name"]});
+      {"name": token.name});
     tree.openElements.add(tree.headPointer);
-    parser.phases["inHead"].processStartTag(token);
+    parser._inHeadPhase.processStartTag(token);
     for (var node in reversed(tree.openElements)) {
       if (node.name == "head") {
         removeFromList(tree.openElements, node);
@@ -992,32 +1025,32 @@ class AfterHeadPhase extends Phase {
     }
   }
 
-  void startTagHead(token) {
-    parser.parseError("unexpected-start-tag", {"name":token["name"]});
+  void startTagHead(StartTagToken token) {
+    parser.parseError("unexpected-start-tag", {"name":token.name});
   }
 
-  Map startTagOther(token) {
+  Token startTagOther(StartTagToken token) {
     anythingElse();
     return token;
   }
 
-  Map endTagHtmlBodyBr(token) {
+  Token endTagHtmlBodyBr(EndTagToken token) {
     anythingElse();
     return token;
   }
 
-  void endTagOther(token) {
-    parser.parseError("unexpected-end-tag", {"name":token["name"]});
+  void endTagOther(EndTagToken token) {
+    parser.parseError("unexpected-end-tag", {"name":token.name});
   }
 
   void anythingElse() {
-    tree.insertElement(impliedTagToken("body", "StartTag"));
-    parser.phase = parser.phases["inBody"];
+    tree.insertElement(new StartTagToken("body", data: {}));
+    parser.phase = parser._inBodyPhase;
     parser.framesetOK = true;
   }
 }
 
-typedef Map TokenProccessor(Map token);
+typedef Token TokenProccessor(Token token);
 
 class InBodyPhase extends Phase {
   TokenProccessor processSpaceCharactersFunc;
@@ -1029,8 +1062,8 @@ class InBodyPhase extends Phase {
     processSpaceCharactersFunc = processSpaceCharactersNonPre;
   }
 
-  processStartTag(token) {
-    switch (token['name']) {
+  processStartTag(StartTagToken token) {
+    switch (token.name) {
       case "html":
         return startTagHtml(token);
       case "base": case "basefont": case "bgsound": case "command": case "link":
@@ -1107,8 +1140,8 @@ class InBodyPhase extends Phase {
     }
   }
 
-  processEndTag(token) {
-    switch (token['name']) {
+  processEndTag(EndTagToken token) {
+    switch (token.name) {
       case "body": return endTagBody(token);
       case "html": return endTagHtml(token);
       case "address": case "article": case "aside": case "blockquote":
@@ -1186,10 +1219,10 @@ class InBodyPhase extends Phase {
     return false;
   }
 
-  Map processSpaceCharactersDropNewline(token) {
+  Token processSpaceCharactersDropNewline(token) {
     // Sometimes (start of <pre>, <listing>, and <textarea> blocks) we
     // want to drop leading newlines
-    var data = token["data"];
+    var data = token.data;
     processSpaceCharactersFunc = processSpaceCharactersNonPre;
     if (data.startsWith("\n")) {
       var lastOpen = tree.openElements.last();
@@ -1204,43 +1237,43 @@ class InBodyPhase extends Phase {
     }
   }
 
-  Map processCharacters(token) {
-    if (token["data"] == "\u0000") {
+  Token processCharacters(CharactersToken token) {
+    if (token.data == "\u0000") {
       //The tokenizer should always emit null on its own
       return null;
     }
     tree.reconstructActiveFormattingElements();
-    tree.insertText(token["data"]);
-    if (parser.framesetOK && !allWhitespace(token["data"])) {
+    tree.insertText(token.data);
+    if (parser.framesetOK && !allWhitespace(token.data)) {
       parser.framesetOK = false;
     }
   }
 
-  Map processSpaceCharactersNonPre(token) {
+  Token processSpaceCharactersNonPre(token) {
     tree.reconstructActiveFormattingElements();
-    tree.insertText(token["data"]);
+    tree.insertText(token.data);
   }
 
-  Map processSpaceCharacters(token) => processSpaceCharactersFunc(token);
+  Token processSpaceCharacters(token) => processSpaceCharactersFunc(token);
 
-  Map startTagProcessInHead(token) {
-    return parser.phases["inHead"].processStartTag(token);
+  Token startTagProcessInHead(StartTagToken token) {
+    return parser._inHeadPhase.processStartTag(token);
   }
 
-  void startTagBody(token) {
+  void startTagBody(StartTagToken token) {
     parser.parseError("unexpected-start-tag", {"name": "body"});
     if (tree.openElements.length == 1
         || tree.openElements[1].name != "body") {
       assert(parser.innerHTMLMode);
     } else {
       parser.framesetOK = false;
-      token["data"].forEach((attr, value) {
+      token.data.forEach((attr, value) {
         tree.openElements[1].attributes.putIfAbsent(attr, () => value);
       });
     }
   }
 
-  void startTagFrameset(token) {
+  void startTagFrameset(StartTagToken token) {
     parser.parseError("unexpected-start-tag", {"name": "frameset"});
     if ((tree.openElements.length == 1 ||
         tree.openElements[1].name != "body")) {
@@ -1253,48 +1286,48 @@ class InBodyPhase extends Phase {
         tree.openElements.removeLast();
       }
       tree.insertElement(token);
-      parser.phase = parser.phases["inFrameset"];
+      parser.phase = parser._inFramesetPhase;
     }
   }
 
-  void startTagCloseP(token) {
+  void startTagCloseP(StartTagToken token) {
     if (tree.elementInScope("p", variant: "button")) {
-      endTagP(impliedTagToken("p"));
+      endTagP(new EndTagToken("p", data: {}));
     }
     tree.insertElement(token);
   }
 
-  void startTagPreListing(token) {
+  void startTagPreListing(StartTagToken token) {
     if (tree.elementInScope("p", variant: "button")) {
-      endTagP(impliedTagToken("p"));
+      endTagP(new EndTagToken("p", data: {}));
     }
     tree.insertElement(token);
     parser.framesetOK = false;
     processSpaceCharactersFunc = processSpaceCharactersDropNewline;
   }
 
-  void startTagForm(token) {
+  void startTagForm(StartTagToken token) {
     if (tree.formPointer != null) {
       parser.parseError("unexpected-start-tag", {"name": "form"});
     } else {
       if (tree.elementInScope("p", variant: "button")) {
-        endTagP(impliedTagToken("p"));
+        endTagP(new EndTagToken("p", data: {}));
       }
       tree.insertElement(token);
       tree.formPointer = tree.openElements.last();
     }
   }
 
-  void startTagListItem(token) {
+  void startTagListItem(StartTagToken token) {
     parser.framesetOK = false;
 
     final stopNamesMap = const {"li": const ["li"],
                                 "dt": const ["dt", "dd"],
                                 "dd": const ["dt", "dd"]};
-    var stopNames = stopNamesMap[token["name"]];
+    var stopNames = stopNamesMap[token.name];
     for (var node in reversed(tree.openElements)) {
       if (stopNames.indexOf(node.name) >= 0) {
-        parser.phase.processEndTag(impliedTagToken(node.name, "EndTag"));
+        parser.phase.processEndTag(new EndTagToken(node.name, data: {}));
         break;
       }
       if (specialElements.indexOf(node.nameTuple) >= 0 &&
@@ -1304,37 +1337,37 @@ class InBodyPhase extends Phase {
     }
 
     if (tree.elementInScope("p", variant: "button")) {
-      parser.phase.processEndTag(impliedTagToken("p", "EndTag"));
+      parser.phase.processEndTag(new EndTagToken("p", data: {}));
     }
 
     tree.insertElement(token);
   }
 
-  void startTagPlaintext(token) {
+  void startTagPlaintext(StartTagToken token) {
     if (tree.elementInScope("p", variant: "button")) {
-      endTagP(impliedTagToken("p"));
+      endTagP(new EndTagToken("p", data: {}));
     }
     tree.insertElement(token);
     parser.tokenizer.state = parser.tokenizer.plaintextState;
   }
 
-  void startTagHeading(token) {
+  void startTagHeading(StartTagToken token) {
     if (tree.elementInScope("p", variant: "button")) {
-      endTagP(impliedTagToken("p"));
+      endTagP(new EndTagToken("p", data: {}));
     }
     if (headingElements.indexOf(tree.openElements.last().name) >= 0) {
-      parser.parseError("unexpected-start-tag", {"name": token["name"]});
+      parser.parseError("unexpected-start-tag", {"name": token.name});
       tree.openElements.removeLast();
     }
     tree.insertElement(token);
   }
 
-  void startTagA(token) {
+  void startTagA(StartTagToken token) {
     var afeAElement = tree.elementInActiveFormattingElements("a");
     if (afeAElement != null) {
       parser.parseError("unexpected-start-tag-implies-end-tag",
           {"startName": "a", "endName": "a"});
-      endTagFormatting(impliedTagToken("a"));
+      endTagFormatting(new EndTagToken("a", data: {}));
       removeFromList(tree.openElements, afeAElement);
       removeFromList(tree.activeFormattingElements, afeAElement);
     }
@@ -1342,28 +1375,28 @@ class InBodyPhase extends Phase {
     addFormattingElement(token);
   }
 
-  void startTagFormatting(token) {
+  void startTagFormatting(StartTagToken token) {
     tree.reconstructActiveFormattingElements();
     addFormattingElement(token);
   }
 
-  void startTagNobr(token) {
+  void startTagNobr(StartTagToken token) {
     tree.reconstructActiveFormattingElements();
     if (tree.elementInScope("nobr")) {
       parser.parseError("unexpected-start-tag-implies-end-tag",
         {"startName": "nobr", "endName": "nobr"});
-      processEndTag(impliedTagToken("nobr"));
+      processEndTag(new EndTagToken("nobr", data: {}));
       // XXX Need tests that trigger the following
       tree.reconstructActiveFormattingElements();
     }
     addFormattingElement(token);
   }
 
-  Map startTagButton(token) {
+  Token startTagButton(StartTagToken token) {
     if (tree.elementInScope("button")) {
       parser.parseError("unexpected-start-tag-implies-end-tag",
         {"startName": "button", "endName": "button"});
-      processEndTag(impliedTagToken("button"));
+      processEndTag(new EndTagToken("button", data: {}));
       return token;
     } else {
       tree.reconstructActiveFormattingElements();
@@ -1372,150 +1405,147 @@ class InBodyPhase extends Phase {
     }
   }
 
-  void startTagAppletMarqueeObject(token) {
+  void startTagAppletMarqueeObject(StartTagToken token) {
     tree.reconstructActiveFormattingElements();
     tree.insertElement(token);
     tree.activeFormattingElements.add(Marker);
     parser.framesetOK = false;
   }
 
-  void startTagXmp(token) {
+  void startTagXmp(StartTagToken token) {
     if (tree.elementInScope("p", variant: "button")) {
-      endTagP(impliedTagToken("p"));
+      endTagP(new EndTagToken("p", data: {}));
     }
     tree.reconstructActiveFormattingElements();
     parser.framesetOK = false;
     parser.parseRCDataRawtext(token, "RAWTEXT");
   }
 
-  void startTagTable(token) {
+  void startTagTable(StartTagToken token) {
     if (parser.compatMode != "quirks") {
       if (tree.elementInScope("p", variant: "button")) {
-        processEndTag(impliedTagToken("p"));
+        processEndTag(new EndTagToken("p", data: {}));
       }
     }
     tree.insertElement(token);
     parser.framesetOK = false;
-    parser.phase = parser.phases["inTable"];
+    parser.phase = parser._inTablePhase;
   }
 
-  void startTagVoidFormatting(token) {
+  void startTagVoidFormatting(StartTagToken token) {
     tree.reconstructActiveFormattingElements();
     tree.insertElement(token);
     tree.openElements.removeLast();
-    token["selfClosingAcknowledged"] = true;
+    token.selfClosingAcknowledged = true;
     parser.framesetOK = false;
   }
 
-  void startTagInput(token) {
+  void startTagInput(StartTagToken token) {
     var savedFramesetOK = parser.framesetOK;
     startTagVoidFormatting(token);
-    if (asciiUpper2Lower(token["data"]["type"]) == "hidden") {
+    if (asciiUpper2Lower(token.data["type"]) == "hidden") {
       //input type=hidden doesn't change framesetOK
       parser.framesetOK = savedFramesetOK;
     }
   }
 
-  void startTagParamSource(token) {
+  void startTagParamSource(StartTagToken token) {
     tree.insertElement(token);
     tree.openElements.removeLast();
-    token["selfClosingAcknowledged"] = true;
+    token.selfClosingAcknowledged = true;
   }
 
-  void startTagHr(token) {
+  void startTagHr(StartTagToken token) {
     if (tree.elementInScope("p", variant: "button")) {
-      endTagP(impliedTagToken("p"));
+      endTagP(new EndTagToken("p", data: {}));
     }
     tree.insertElement(token);
     tree.openElements.removeLast();
-    token["selfClosingAcknowledged"] = true;
+    token.selfClosingAcknowledged = true;
     parser.framesetOK = false;
   }
 
-  void startTagImage(token) {
+  void startTagImage(StartTagToken token) {
     // No really...
     parser.parseError("unexpected-start-tag-treated-as",
         {"originalName": "image", "newName": "img"});
-    processStartTag(impliedTagToken("img", "StartTag",
-        attributes: token["data"], selfClosing: token["selfClosing"]));
+    processStartTag(new StartTagToken("img", data: token.data,
+        selfClosing: token.selfClosing));
   }
 
-  void startTagIsIndex(token) {
+  void startTagIsIndex(StartTagToken token) {
     parser.parseError("deprecated-tag", {"name": "isindex"});
     if (tree.formPointer != null) {
       return;
     }
     var formAttrs = {};
-    var dataAction = token["data"]["action"];
+    var dataAction = token.data["action"];
     if (dataAction != null) {
       formAttrs["action"] = dataAction;
     }
-    processStartTag(impliedTagToken("form", "StartTag",
-                    attributes: formAttrs));
-    processStartTag(impliedTagToken("hr", "StartTag"));
-    processStartTag(impliedTagToken("label", "StartTag"));
+    processStartTag(new StartTagToken("form", data: formAttrs));
+    processStartTag(new StartTagToken("hr", data: {}));
+    processStartTag(new StartTagToken("label", data: {}));
     // XXX Localization ...
-    var prompt = token["data"]["prompt"];
+    var prompt = token.data["prompt"];
     if (prompt == null) {
       prompt = "This is a searchable index. Enter search keywords: ";
     }
-    processCharacters({"type":CharactersToken, "data":prompt});
-    var attributes = new Map.from(token["data"]);
+    processCharacters(new CharactersToken(prompt));
+    var attributes = new Map.from(token.data);
     attributes.remove('action');
     attributes.remove('prompt');
     attributes["name"] = "isindex";
-    processStartTag(impliedTagToken("input", "StartTag",
-                    attributes: attributes,
-                    selfClosing: token["selfClosing"]));
-    processEndTag(impliedTagToken("label"));
-    processStartTag(impliedTagToken("hr", "StartTag"));
-    processEndTag(impliedTagToken("form"));
+    processStartTag(new StartTagToken("input",
+                    data: attributes, selfClosing: token.selfClosing));
+    processEndTag(new EndTagToken("label", data: {}));
+    processStartTag(new StartTagToken("hr", data: {}));
+    processEndTag(new EndTagToken("form", data: {}));
   }
 
-  void startTagTextarea(token) {
+  void startTagTextarea(StartTagToken token) {
     tree.insertElement(token);
     parser.tokenizer.state = parser.tokenizer.rcdataState;
     processSpaceCharactersFunc = processSpaceCharactersDropNewline;
     parser.framesetOK = false;
   }
 
-  void startTagIFrame(token) {
+  void startTagIFrame(StartTagToken token) {
     parser.framesetOK = false;
     startTagRawtext(token);
   }
 
   /** iframe, noembed noframes, noscript(if scripting enabled). */
-  void startTagRawtext(token) {
+  void startTagRawtext(StartTagToken token) {
     parser.parseRCDataRawtext(token, "RAWTEXT");
   }
 
-  void startTagOpt(token) {
+  void startTagOpt(StartTagToken token) {
     if (tree.openElements.last().name == "option") {
-      parser.phase.processEndTag(impliedTagToken("option"));
+      parser.phase.processEndTag(new EndTagToken("option", data: {}));
     }
     tree.reconstructActiveFormattingElements();
     parser.tree.insertElement(token);
   }
 
-  void startTagSelect(token) {
+  void startTagSelect(StartTagToken token) {
     tree.reconstructActiveFormattingElements();
     tree.insertElement(token);
     parser.framesetOK = false;
 
-    var phases = parser.phases;
-    if (phases["inTable"] == parser.phase ||
-        phases["inCaption"] == parser.phase ||
-        phases["inColumnGroup"] == parser.phase ||
-        phases["inTableBody"] == parser.phase ||
-        phases["inRow"] == parser.phase ||
-        phases["inCell"] == parser.phase) {
-      parser.phase = parser.phases["inSelectInTable"];
+    if (parser._inTablePhase == parser.phase ||
+        parser._inCaptionPhase == parser.phase ||
+        parser._inColumnGroupPhase == parser.phase ||
+        parser._inTableBodyPhase == parser.phase ||
+        parser._inRowPhase == parser.phase ||
+        parser._inCellPhase == parser.phase) {
+      parser.phase = parser._inSelectInTablePhase;
     } else {
-      parser.phase = parser.phases["inSelect"];
+      parser.phase = parser._inSelectPhase;
     }
   }
 
-  void startTagRpRt(token) {
+  void startTagRpRt(StartTagToken token) {
     if (tree.elementInScope("ruby")) {
       tree.generateImpliedEndTags();
       if (tree.openElements.last().name != "ruby") {
@@ -1525,31 +1555,31 @@ class InBodyPhase extends Phase {
     tree.insertElement(token);
   }
 
-  void startTagMath(token) {
+  void startTagMath(StartTagToken token) {
     tree.reconstructActiveFormattingElements();
     parser.adjustMathMLAttributes(token);
     parser.adjustForeignAttributes(token);
-    token["namespace"] = Namespaces.mathml;
+    token.namespace = Namespaces.mathml;
     tree.insertElement(token);
     //Need to get the parse error right for the case where the token
     //has a namespace not equal to the xmlns attribute
-    if (token["selfClosing"]) {
+    if (token.selfClosing) {
       tree.openElements.removeLast();
-      token["selfClosingAcknowledged"] = true;
+      token.selfClosingAcknowledged = true;
     }
   }
 
-  void startTagSvg(token) {
+  void startTagSvg(StartTagToken token) {
     tree.reconstructActiveFormattingElements();
     parser.adjustSVGAttributes(token);
     parser.adjustForeignAttributes(token);
-    token["namespace"] = Namespaces.svg;
+    token.namespace = Namespaces.svg;
     tree.insertElement(token);
     //Need to get the parse error right for the case where the token
     //has a namespace not equal to the xmlns attribute
-    if (token["selfClosing"]) {
+    if (token.selfClosing) {
       tree.openElements.removeLast();
-      token["selfClosingAcknowledged"] = true;
+      token.selfClosingAcknowledged = true;
     }
   }
 
@@ -1560,21 +1590,21 @@ class InBodyPhase extends Phase {
    * "option", "optgroup", "tbody", "td", "tfoot", "th", "thead",
    * "tr", "noscript"
   */
-  void startTagMisplaced(token) {
+  void startTagMisplaced(StartTagToken token) {
     parser.parseError("unexpected-start-tag-ignored",
-        {"name": token["name"]});
+        {"name": token.name});
   }
 
-  Map startTagOther(token) {
+  Token startTagOther(StartTagToken token) {
     tree.reconstructActiveFormattingElements();
     tree.insertElement(token);
   }
 
-  void endTagP(token) {
+  void endTagP(EndTagToken token) {
     if (!tree.elementInScope("p", variant: "button")) {
-      startTagCloseP(impliedTagToken("p", "StartTag"));
+      startTagCloseP(new StartTagToken("p", data: {}));
       parser.parseError("unexpected-end-tag", {"name": "p"});
-      endTagP(impliedTagToken("p", "EndTag"));
+      endTagP(new EndTagToken("p", data: {}));
     } else {
       tree.generateImpliedEndTags("p");
       if (tree.openElements.last().name != "p") {
@@ -1584,7 +1614,7 @@ class InBodyPhase extends Phase {
     }
   }
 
-  void endTagBody(token) {
+  void endTagBody(EndTagToken token) {
     if (!tree.elementInScope("body")) {
       parser.parseError();
       return;
@@ -1602,35 +1632,35 @@ class InBodyPhase extends Phase {
         break;
       }
     }
-    parser.phase = parser.phases["afterBody"];
+    parser.phase = parser._afterBodyPhase;
   }
 
-  Map endTagHtml(token) {
+  Token endTagHtml(EndTagToken token) {
     //We repeat the test for the body end tag token being ignored here
     if (tree.elementInScope("body")) {
-      endTagBody(impliedTagToken("body"));
+      endTagBody(new EndTagToken("body", data: {}));
       return token;
     }
   }
 
-  void endTagBlock(token) {
+  void endTagBlock(EndTagToken token) {
     //Put us back in the right whitespace handling mode
-    if (token["name"] == "pre") {
+    if (token.name == "pre") {
       processSpaceCharactersFunc = processSpaceCharactersNonPre;
     }
-    var inScope = tree.elementInScope(token["name"]);
+    var inScope = tree.elementInScope(token.name);
     if (inScope) {
       tree.generateImpliedEndTags();
     }
-    if (tree.openElements.last().name != token["name"]) {
-      parser.parseError("end-tag-too-early", {"name": token["name"]});
+    if (tree.openElements.last().name != token.name) {
+      parser.parseError("end-tag-too-early", {"name": token.name});
     }
     if (inScope) {
-      popOpenElementsUntil(token["name"]);
+      popOpenElementsUntil(token.name);
     }
   }
 
-  void endTagForm(token) {
+  void endTagForm(EndTagToken token) {
     var node = tree.formPointer;
     tree.formPointer = null;
     if (node === null || !tree.elementInScope(node)) {
@@ -1644,33 +1674,33 @@ class InBodyPhase extends Phase {
     }
   }
 
-  void endTagListItem(token) {
+  void endTagListItem(EndTagToken token) {
     var variant;
-    if (token["name"] == "li") {
+    if (token.name == "li") {
       variant = "list";
     } else {
       variant = null;
     }
-    if (!tree.elementInScope(token["name"], variant: variant)) {
-      parser.parseError("unexpected-end-tag", {"name": token["name"]});
+    if (!tree.elementInScope(token.name, variant: variant)) {
+      parser.parseError("unexpected-end-tag", {"name": token.name});
     } else {
-      tree.generateImpliedEndTags(exclude: token["name"]);
-      if (tree.openElements.last().name != token["name"]) {
-        parser.parseError("end-tag-too-early", {"name": token["name"]});
+      tree.generateImpliedEndTags(exclude: token.name);
+      if (tree.openElements.last().name != token.name) {
+        parser.parseError("end-tag-too-early", {"name": token.name});
       }
-      popOpenElementsUntil(token["name"]);
+      popOpenElementsUntil(token.name);
     }
   }
 
-  void endTagHeading(token) {
+  void endTagHeading(EndTagToken token) {
     for (var item in headingElements) {
       if (tree.elementInScope(item)) {
         tree.generateImpliedEndTags();
         break;
       }
     }
-    if (tree.openElements.last().name != token["name"]) {
-      parser.parseError("end-tag-too-early", {"name": token["name"]});
+    if (tree.openElements.last().name != token.name) {
+      parser.parseError("end-tag-too-early", {"name": token.name});
     }
 
     for (var item in headingElements) {
@@ -1685,8 +1715,11 @@ class InBodyPhase extends Phase {
   }
 
   /** The much-feared adoption agency algorithm. */
-  endTagFormatting(token) {
-    // http://www.whatwg.org/specs/web-apps/current-work///adoptionAgency
+  endTagFormatting(EndTagToken token) {
+    // http://www.whatwg.org/specs/web-apps/current-work/multipage/tree-construction.html#adoptionAgency
+    // TODO(jmesserly): the comments here don't match the numbered steps in the
+    // updated spec. This needs a pass over it to verify that it still matches.
+    // In particular the html5lib Python code skiped "step 4", I'm not sure why.
     // XXX Better parseError messages appreciated.
     int outerLoopCounter = 0;
     while (outerLoopCounter < 8) {
@@ -1694,28 +1727,28 @@ class InBodyPhase extends Phase {
 
       // Step 1 paragraph 1
       var formattingElement = tree.elementInActiveFormattingElements(
-          token["name"]);
+          token.name);
       if (formattingElement == null ||
           (tree.openElements.indexOf(formattingElement) >= 0 &&
            !tree.elementInScope(formattingElement.name))) {
-        parser.parseError("adoption-agency-1.1", {"name": token["name"]});
+        parser.parseError("adoption-agency-1.1", {"name": token.name});
         return;
       // Step 1 paragraph 2
       } else if (tree.openElements.indexOf(formattingElement) == -1) {
-        parser.parseError("adoption-agency-1.2", {"name": token["name"]});
+        parser.parseError("adoption-agency-1.2", {"name": token.name});
         removeFromList(tree.activeFormattingElements, formattingElement);
         return;
       }
 
       // Step 1 paragraph 3
       if (formattingElement != tree.openElements.last()) {
-        parser.parseError("adoption-agency-1.3", {"name": token["name"]});
+        parser.parseError("adoption-agency-1.3", {"name": token.name});
       }
 
       // Step 2
       // Start of the adoption agency algorithm proper
       var afeIndex = tree.openElements.indexOf(formattingElement);
-      var furthestBlock = null;
+      Node furthestBlock = null;
       for (var element in slice(tree.openElements, afeIndex)) {
         if (specialElements.indexOf(element.nameTuple) >= 0) {
           furthestBlock = element;
@@ -1734,10 +1767,6 @@ class InBodyPhase extends Phase {
 
       var commonAncestor = tree.openElements[afeIndex - 1];
 
-      // Step 4
-      //if (furthestBlock.parent != null) {
-      //  furthestBlock.parent.removeChild(furthestBlock)
-
       // Step 5
       // The bookmark is supposed to help us identify where to reinsert
       // nodes in step 12. We have to ensure that we reinsert nodes after
@@ -1746,7 +1775,7 @@ class InBodyPhase extends Phase {
       var bookmark = tree.activeFormattingElements.indexOf(formattingElement);
 
       // Step 6
-      var lastNode = furthestBlock;
+      Node lastNode = furthestBlock;
       var node = furthestBlock;
       int innerLoopCounter = 0;
 
@@ -1771,7 +1800,7 @@ class InBodyPhase extends Phase {
         }
         // Step 6.5
         //cite = node.parent
-        var clone = node.cloneNode();
+        var clone = node.clone();
         // Replace node with clone
         tree.activeFormattingElements[
             tree.activeFormattingElements.indexOf(node)] = clone;
@@ -1781,9 +1810,9 @@ class InBodyPhase extends Phase {
         // Step 6.6
         // Remove lastNode from its parents, if any
         if (lastNode.parent != null) {
-          lastNode.parent.removeChild(lastNode);
+          lastNode.parent.$dom_removeChild(lastNode);
         }
-        node.appendChild(lastNode);
+        node.$dom_appendChild(lastNode);
         // Step 7.7
         lastNode = node;
         // End of inner loop
@@ -1812,7 +1841,7 @@ class InBodyPhase extends Phase {
       furthestBlock.reparentChildren(clone);
 
       // Step 10
-      furthestBlock.appendChild(clone);
+      furthestBlock.$dom_appendChild(clone);
 
       // Step 11
       removeFromList(tree.activeFormattingElements, formattingElement);
@@ -1826,39 +1855,39 @@ class InBodyPhase extends Phase {
     }
   }
 
-  void endTagAppletMarqueeObject(token) {
-    if (tree.elementInScope(token["name"])) {
+  void endTagAppletMarqueeObject(EndTagToken token) {
+    if (tree.elementInScope(token.name)) {
       tree.generateImpliedEndTags();
     }
-    if (tree.openElements.last().name != token["name"]) {
-      parser.parseError("end-tag-too-early", {"name": token["name"]});
+    if (tree.openElements.last().name != token.name) {
+      parser.parseError("end-tag-too-early", {"name": token.name});
     }
-    if (tree.elementInScope(token["name"])) {
-      popOpenElementsUntil(token["name"]);
+    if (tree.elementInScope(token.name)) {
+      popOpenElementsUntil(token.name);
       tree.clearActiveFormattingElements();
     }
   }
 
-  void endTagBr(token) {
+  void endTagBr(EndTagToken token) {
     parser.parseError("unexpected-end-tag-treated-as",
         {"originalName": "br", "newName": "br element"});
     tree.reconstructActiveFormattingElements();
-    tree.insertElement(impliedTagToken("br", "StartTag"));
+    tree.insertElement(new StartTagToken("br", data: {}));
     tree.openElements.removeLast();
   }
 
-  void endTagOther(token) {
+  void endTagOther(EndTagToken token) {
     for (var node in reversed(tree.openElements)) {
-      if (node.name == token["name"]) {
-        tree.generateImpliedEndTags(exclude: token["name"]);
-        if (tree.openElements.last().name != token["name"]) {
-          parser.parseError("unexpected-end-tag", {"name": token["name"]});
+      if (node.name == token.name) {
+        tree.generateImpliedEndTags(exclude: token.name);
+        if (tree.openElements.last().name != token.name) {
+          parser.parseError("unexpected-end-tag", {"name": token.name});
         }
         while (tree.openElements.removeLast() != node);
         break;
       } else {
         if (specialElements.indexOf(node.nameTuple) >= 0) {
-          parser.parseError("unexpected-end-tag", {"name": token["name"]});
+          parser.parseError("unexpected-end-tag", {"name": token.name});
           break;
         }
       }
@@ -1870,16 +1899,16 @@ class InBodyPhase extends Phase {
 class TextPhase extends Phase {
   TextPhase(parser) : super(parser);
 
-  // "Tried to process start tag %s in RCDATA/RAWTEXT mode"%token['name']
-  processStartTag(token) { assert(false); }
+  // "Tried to process start tag %s in RCDATA/RAWTEXT mode"%token.name
+  processStartTag(StartTagToken token) { assert(false); }
 
-  processEndTag(token) {
-    if (token['name'] == 'script') return endTagScript(token);
+  processEndTag(EndTagToken token) {
+    if (token.name == 'script') return endTagScript(token);
     return endTagOther(token);
   }
 
-  Map processCharacters(token) {
-    tree.insertText(token["data"]);
+  Token processCharacters(CharactersToken token) {
+    tree.insertText(token.data);
   }
 
   bool processEOF() {
@@ -1890,7 +1919,7 @@ class TextPhase extends Phase {
     return true;
   }
 
-  void endTagScript(token) {
+  void endTagScript(EndTagToken token) {
     var node = tree.openElements.removeLast();
     assert(node.name == "script");
     parser.phase = parser.originalPhase;
@@ -1898,7 +1927,7 @@ class TextPhase extends Phase {
     //document.write works
   }
 
-  void endTagOther(token) {
+  void endTagOther(EndTagToken token) {
     var node = tree.openElements.removeLast();
     parser.phase = parser.originalPhase;
   }
@@ -1908,8 +1937,8 @@ class InTablePhase extends Phase {
   // http://www.whatwg.org/specs/web-apps/current-work///in-table
   InTablePhase(parser) : super(parser);
 
-  processStartTag(token) {
-    switch (token['name']) {
+  processStartTag(StartTagToken token) {
+    switch (token.name) {
       case "html": return startTagHtml(token);
       case "caption": return startTagCaption(token);
       case "colgroup": return startTagColgroup(token);
@@ -1924,8 +1953,8 @@ class InTablePhase extends Phase {
     }
   }
 
-  processEndTag(token) {
-    switch (token['name']) {
+  processEndTag(EndTagToken token) {
+    switch (token.name) {
       case "table": return endTagTable(token);
       case "body": case "caption": case "col": case "colgroup": case "html":
       case "tbody": case "td": case "tfoot": case "th": case "thead": case "tr":
@@ -1957,72 +1986,72 @@ class InTablePhase extends Phase {
     return false;
   }
 
-  Map processSpaceCharacters(token) {
+  Token processSpaceCharacters(SpaceCharactersToken token) {
     var originalPhase = parser.phase;
-    parser.phase = parser.phases["inTableText"];
-    (parser.phase as InTableTextPhase).originalPhase = originalPhase;
+    parser.phase = parser._inTableTextPhase;
+    parser._inTableTextPhase.originalPhase = originalPhase;
     parser.phase.processSpaceCharacters(token);
   }
 
-  Map processCharacters(token) {
+  Token processCharacters(CharactersToken token) {
     var originalPhase = parser.phase;
-    parser.phase = parser.phases["inTableText"];
-    (parser.phase as InTableTextPhase).originalPhase = originalPhase;
+    parser.phase = parser._inTableTextPhase;
+    parser._inTableTextPhase.originalPhase = originalPhase;
     parser.phase.processCharacters(token);
   }
 
-  void insertText(token) {
+  void insertText(CharactersToken token) {
     // If we get here there must be at least one non-whitespace character
     // Do the table magic!
     tree.insertFromTable = true;
-    parser.phases["inBody"].processCharacters(token);
+    parser._inBodyPhase.processCharacters(token);
     tree.insertFromTable = false;
   }
 
-  void startTagCaption(token) {
+  void startTagCaption(StartTagToken token) {
     clearStackToTableContext();
     tree.activeFormattingElements.add(Marker);
     tree.insertElement(token);
-    parser.phase = parser.phases["inCaption"];
+    parser.phase = parser._inCaptionPhase;
   }
 
-  void startTagColgroup(token) {
+  void startTagColgroup(StartTagToken token) {
     clearStackToTableContext();
     tree.insertElement(token);
-    parser.phase = parser.phases["inColumnGroup"];
+    parser.phase = parser._inColumnGroupPhase;
   }
 
-  Map startTagCol(token) {
-    startTagColgroup(impliedTagToken("colgroup", "StartTag"));
+  Token startTagCol(StartTagToken token) {
+    startTagColgroup(new StartTagToken("colgroup", data: {}));
     return token;
   }
 
-  void startTagRowGroup(token) {
+  void startTagRowGroup(StartTagToken token) {
     clearStackToTableContext();
     tree.insertElement(token);
-    parser.phase = parser.phases["inTableBody"];
+    parser.phase = parser._inTableBodyPhase;
   }
 
-  Map startTagImplyTbody(token) {
-    startTagRowGroup(impliedTagToken("tbody", "StartTag"));
+  Token startTagImplyTbody(StartTagToken token) {
+    startTagRowGroup(new StartTagToken("tbody", data: {}));
     return token;
   }
 
-  Map startTagTable(token) {
+  Token startTagTable(StartTagToken token) {
     parser.parseError("unexpected-start-tag-implies-end-tag",
         {"startName": "table", "endName": "table"});
-    parser.phase.processEndTag(impliedTagToken("table"));
+    parser.phase.processEndTag(new EndTagToken("table", data: {}));
     if (!parser.innerHTMLMode) {
       return token;
     }
   }
 
-  Map startTagStyleScript(token) {
-    return parser.phases["inHead"].processStartTag(token);
+  Token startTagStyleScript(StartTagToken token) {
+    return parser._inHeadPhase.processStartTag(token);
   }
 
-  void startTagInput(token) {
-    if (asciiUpper2Lower(token["data"]["type"]) == "hidden") {
+  void startTagInput(StartTagToken token) {
+    if (asciiUpper2Lower(token.data["type"]) == "hidden") {
       parser.parseError("unexpected-hidden-input-in-table");
       tree.insertElement(token);
       // XXX associate with form
@@ -2032,7 +2061,7 @@ class InTablePhase extends Phase {
     }
   }
 
-  void startTagForm(token) {
+  void startTagForm(StartTagToken token) {
     parser.parseError("unexpected-form-in-table");
     if (tree.formPointer === null) {
       tree.insertElement(token);
@@ -2041,16 +2070,16 @@ class InTablePhase extends Phase {
     }
   }
 
-  void startTagOther(token) {
+  void startTagOther(StartTagToken token) {
     parser.parseError("unexpected-start-tag-implies-table-voodoo",
-        {"name": token["name"]});
+        {"name": token.name});
     // Do the table magic!
     tree.insertFromTable = true;
-    parser.phases["inBody"].processStartTag(token);
+    parser._inBodyPhase.processStartTag(token);
     tree.insertFromTable = false;
   }
 
-  void endTagTable(token) {
+  void endTagTable(EndTagToken token) {
     if (tree.elementInScope("table", variant: "table")) {
       tree.generateImpliedEndTags();
       if (tree.openElements.last().name != "table") {
@@ -2069,38 +2098,39 @@ class InTablePhase extends Phase {
     }
   }
 
-  void endTagIgnore(token) {
-    parser.parseError("unexpected-end-tag", {"name": token["name"]});
+  void endTagIgnore(EndTagToken token) {
+    parser.parseError("unexpected-end-tag", {"name": token.name});
   }
 
-  void endTagOther(token) {
+  void endTagOther(EndTagToken token) {
     parser.parseError("unexpected-end-tag-implies-table-voodoo",
-        {"name": token["name"]});
+        {"name": token.name});
     // Do the table magic!
     tree.insertFromTable = true;
-    parser.phases["inBody"].processEndTag(token);
+    parser._inBodyPhase.processEndTag(token);
     tree.insertFromTable = false;
   }
 }
 
 class InTableTextPhase extends Phase {
   Phase originalPhase;
-  List characterTokens;
+  List<StringToken> characterTokens;
 
-  InTableTextPhase(parser) : super(parser), characterTokens = [];
+  InTableTextPhase(parser)
+      : characterTokens = <StringToken>[],
+        super(parser);
 
   void flushCharacters() {
-    var data = joinStr(characterTokens.map((t) => t["data"]));
+    var data = joinStr(characterTokens.map((t) => t.data));
     if (!allWhitespace(data)) {
-      var token = {"type": CharactersToken, "data": data};
-      (parser.phases["inTable"] as InTablePhase).insertText(token);
+      parser._inTablePhase.insertText(new CharactersToken(data));
     } else if (data.length > 0) {
       tree.insertText(data);
     }
-    characterTokens = [];
+    characterTokens = <StringToken>[];
   }
 
-  Map processComment(token) {
+  Token processComment(CommentToken token) {
     flushCharacters();
     parser.phase = originalPhase;
     return token;
@@ -2112,26 +2142,26 @@ class InTableTextPhase extends Phase {
     return true;
   }
 
-  Map processCharacters(token) {
-    if (token["data"] == "\u0000") {
+  Token processCharacters(CharactersToken token) {
+    if (token.data == "\u0000") {
       return null;
     }
     characterTokens.add(token);
   }
 
-  Map processSpaceCharacters(token) {
+  Token processSpaceCharacters(SpaceCharactersToken token) {
     //pretty sure we should never reach here
     characterTokens.add(token);
     // XXX assert(false);
   }
 
-  Map processStartTag(token) {
+  Token processStartTag(StartTagToken token) {
     flushCharacters();
     parser.phase = originalPhase;
     return token;
   }
 
-  Map processEndTag(token) {
+  Token processEndTag(EndTagToken token) {
     flushCharacters();
     parser.phase = originalPhase;
     return token;
@@ -2143,8 +2173,8 @@ class InCaptionPhase extends Phase {
   // http://www.whatwg.org/specs/web-apps/current-work///in-caption
   InCaptionPhase(parser) : super(parser);
 
-  processStartTag(token) {
-    switch (token['name']) {
+  processStartTag(StartTagToken token) {
+    switch (token.name) {
       case "html": return startTagHtml(token);
       case "caption": case "col": case "colgroup": case "tbody": case "td":
       case "tfoot": case "th": case "thead": case "tr":
@@ -2153,8 +2183,8 @@ class InCaptionPhase extends Phase {
     }
   }
 
-  processEndTag(token) {
-    switch (token['name']) {
+  processEndTag(EndTagToken token) {
+    switch (token.name) {
       case "caption": return endTagCaption(token);
       case "table": return endTagTable(token);
       case "body": case "col": case "colgroup": case "html": case "tbody":
@@ -2169,30 +2199,30 @@ class InCaptionPhase extends Phase {
   }
 
   bool processEOF() {
-    parser.phases["inBody"].processEOF();
+    parser._inBodyPhase.processEOF();
     return false;
   }
 
-  Map processCharacters(token) {
-    return parser.phases["inBody"].processCharacters(token);
+  Token processCharacters(CharactersToken token) {
+    return parser._inBodyPhase.processCharacters(token);
   }
 
-  Map startTagTableElement(token) {
+  Token startTagTableElement(StartTagToken token) {
     parser.parseError();
     //XXX Have to duplicate logic here to find out if the tag is ignored
     var ignoreEndTag = ignoreEndTagCaption();
-    parser.phase.processEndTag(impliedTagToken("caption"));
+    parser.phase.processEndTag(new EndTagToken("caption", data: {}));
     if (!ignoreEndTag) {
       return token;
     }
     return null;
   }
 
-  Map startTagOther(token) {
-    return parser.phases["inBody"].processStartTag(token);
+  Token startTagOther(StartTagToken token) {
+    return parser._inBodyPhase.processStartTag(token);
   }
 
-  void endTagCaption(token) {
+  void endTagCaption(EndTagToken token) {
     if (!ignoreEndTagCaption()) {
       // AT this code is quite similar to endTagTable in "InTable"
       tree.generateImpliedEndTags();
@@ -2206,7 +2236,7 @@ class InCaptionPhase extends Phase {
       }
       tree.openElements.removeLast();
       tree.clearActiveFormattingElements();
-      parser.phase = parser.phases["inTable"];
+      parser.phase = parser._inTablePhase;
     } else {
       // innerHTML case
       assert(parser.innerHTMLMode);
@@ -2214,22 +2244,22 @@ class InCaptionPhase extends Phase {
     }
   }
 
-  Map endTagTable(token) {
+  Token endTagTable(EndTagToken token) {
     parser.parseError();
     var ignoreEndTag = ignoreEndTagCaption();
-    parser.phase.processEndTag(impliedTagToken("caption"));
+    parser.phase.processEndTag(new EndTagToken("caption", data: {}));
     if (!ignoreEndTag) {
       return token;
     }
     return null;
   }
 
-  void endTagIgnore(token) {
-    parser.parseError("unexpected-end-tag", {"name": token["name"]});
+  void endTagIgnore(EndTagToken token) {
+    parser.parseError("unexpected-end-tag", {"name": token.name});
   }
 
-  Map endTagOther(token) {
-    return parser.phases["inBody"].processEndTag(token);
+  Token endTagOther(EndTagToken token) {
+    return parser._inBodyPhase.processEndTag(token);
   }
 }
 
@@ -2238,16 +2268,16 @@ class InColumnGroupPhase extends Phase {
   // http://www.whatwg.org/specs/web-apps/current-work///in-column
   InColumnGroupPhase(parser) : super(parser);
 
-  processStartTag(token) {
-    switch (token['name']) {
+  processStartTag(StartTagToken token) {
+    switch (token.name) {
       case "html": return startTagHtml(token);
       case "col": return startTagCol(token);
       default: return startTagOther(token);
     }
   }
 
-  processEndTag(token) {
-    switch (token['name']) {
+  processEndTag(EndTagToken token) {
+    switch (token.name) {
       case "colgroup": return endTagColgroup(token);
       case "col": return endTagCol(token);
       default: return endTagOther(token);
@@ -2264,46 +2294,46 @@ class InColumnGroupPhase extends Phase {
       assert(parser.innerHTMLMode);
       return false;
     } else {
-      endTagColgroup(impliedTagToken("colgroup"));
+      endTagColgroup(new EndTagToken("colgroup", data: {}));
       return true;
     }
   }
 
-  Map processCharacters(token) {
+  Token processCharacters(CharactersToken token) {
     var ignoreEndTag = ignoreEndTagColgroup();
-    endTagColgroup(impliedTagToken("colgroup"));
+    endTagColgroup(new EndTagToken("colgroup", data: {}));
     return ignoreEndTag ? null : token;
   }
 
-  void startTagCol(token) {
+  void startTagCol(StartTagToken token) {
     tree.insertElement(token);
     tree.openElements.removeLast();
   }
 
-  Map startTagOther(token) {
+  Token startTagOther(StartTagToken token) {
     var ignoreEndTag = ignoreEndTagColgroup();
-    endTagColgroup(impliedTagToken("colgroup"));
+    endTagColgroup(new EndTagToken("colgroup", data: {}));
     return ignoreEndTag ? null : token;
   }
 
-  void endTagColgroup(token) {
+  void endTagColgroup(EndTagToken token) {
     if (ignoreEndTagColgroup()) {
       // innerHTML case
       assert(parser.innerHTMLMode);
       parser.parseError();
     } else {
       tree.openElements.removeLast();
-      parser.phase = parser.phases["inTable"];
+      parser.phase = parser._inTablePhase;
     }
   }
 
-  void endTagCol(token) {
+  void endTagCol(EndTagToken token) {
     parser.parseError("no-end-tag", {"name": "col"});
   }
 
-  Map endTagOther(token) {
+  Token endTagOther(EndTagToken token) {
     var ignoreEndTag = ignoreEndTagColgroup();
-    endTagColgroup(impliedTagToken("colgroup"));
+    endTagColgroup(new EndTagToken("colgroup", data: {}));
     return ignoreEndTag ? null : token;
   }
 }
@@ -2313,8 +2343,8 @@ class InTableBodyPhase extends Phase {
   // http://www.whatwg.org/specs/web-apps/current-work///in-table0
   InTableBodyPhase(parser) : super(parser);
 
-  processStartTag(token) {
-    switch (token['name']) {
+  processStartTag(StartTagToken token) {
+    switch (token.name) {
       case "html": return startTagHtml(token);
       case "tr": return startTagTr(token);
       case "td": case "th": return startTagTableCell(token);
@@ -2325,8 +2355,8 @@ class InTableBodyPhase extends Phase {
     }
   }
 
-  processEndTag(token) {
-    switch (token['name']) {
+  processEndTag(EndTagToken token) {
+    switch (token.name) {
       case "tbody": case "tfoot": case "thead":
         return endTagTableRowGroup(token);
       case "table": return endTagTable(token);
@@ -2352,56 +2382,56 @@ class InTableBodyPhase extends Phase {
 
   // the rest
   bool processEOF() {
-    parser.phases["inTable"].processEOF();
+    parser._inTablePhase.processEOF();
     return false;
   }
 
-  Map processSpaceCharacters(token) {
-    return parser.phases["inTable"].processSpaceCharacters(token);
+  Token processSpaceCharacters(SpaceCharactersToken token) {
+    return parser._inTablePhase.processSpaceCharacters(token);
   }
 
-  Map processCharacters(token) {
-    return parser.phases["inTable"].processCharacters(token);
+  Token processCharacters(CharactersToken token) {
+    return parser._inTablePhase.processCharacters(token);
   }
 
-  void startTagTr(token) {
+  void startTagTr(StartTagToken token) {
     clearStackToTableBodyContext();
     tree.insertElement(token);
-    parser.phase = parser.phases["inRow"];
+    parser.phase = parser._inRowPhase;
   }
 
-  Map startTagTableCell(token) {
+  Token startTagTableCell(StartTagToken token) {
     parser.parseError("unexpected-cell-in-table-body",
-        {"name": token["name"]});
-    startTagTr(impliedTagToken("tr", "StartTag"));
+        {"name": token.name});
+    startTagTr(new StartTagToken("tr", data: {}));
     return token;
   }
 
-  Map startTagTableOther(token) => endTagTable(token);
+  Token startTagTableOther(token) => endTagTable(token);
 
-  Map startTagOther(token) {
-    return parser.phases["inTable"].processStartTag(token);
+  Token startTagOther(StartTagToken token) {
+    return parser._inTablePhase.processStartTag(token);
   }
 
-  void endTagTableRowGroup(token) {
-    if (tree.elementInScope(token["name"], variant: "table")) {
+  void endTagTableRowGroup(EndTagToken token) {
+    if (tree.elementInScope(token.name, variant: "table")) {
       clearStackToTableBodyContext();
       tree.openElements.removeLast();
-      parser.phase = parser.phases["inTable"];
+      parser.phase = parser._inTablePhase;
     } else {
       parser.parseError("unexpected-end-tag-in-table-body",
-          {"name": token["name"]});
+          {"name": token.name});
     }
   }
 
-  Map endTagTable(token) {
+  Token endTagTable(TagToken token) {
     // XXX AT Any ideas on how to share this with endTagTable?
     if (tree.elementInScope("tbody", variant: "table") ||
         tree.elementInScope("thead", variant: "table") ||
         tree.elementInScope("tfoot", variant: "table")) {
       clearStackToTableBodyContext();
       endTagTableRowGroup(
-          impliedTagToken(tree.openElements.last().name));
+          new EndTagToken(tree.openElements.last().name, data: {}));
       return token;
     } else {
       // innerHTML case
@@ -2411,13 +2441,13 @@ class InTableBodyPhase extends Phase {
     return null;
   }
 
-  void endTagIgnore(token) {
+  void endTagIgnore(EndTagToken token) {
     parser.parseError("unexpected-end-tag-in-table-body",
-        {"name": token["name"]});
+        {"name": token.name});
   }
 
-  Map endTagOther(token) {
-    return parser.phases["inTable"].processEndTag(token);
+  Token endTagOther(EndTagToken token) {
+    return parser._inTablePhase.processEndTag(token);
   }
 }
 
@@ -2426,8 +2456,8 @@ class InRowPhase extends Phase {
   // http://www.whatwg.org/specs/web-apps/current-work///in-row
   InRowPhase(parser) : super(parser);
 
-  processStartTag(token) {
-    switch (token['name']) {
+  processStartTag(StartTagToken token) {
+    switch (token.name) {
       case "html": return startTagHtml(token);
       case "td": case "th": return startTagTableCell(token);
       case "caption": case "col": case "colgroup": case "tbody": case "tfoot":
@@ -2437,8 +2467,8 @@ class InRowPhase extends Phase {
     }
   }
 
-  processEndTag(token) {
-    switch (token['name']) {
+  processEndTag(EndTagToken token) {
+    switch (token.name) {
       case "tr": return endTagTr(token);
       case "table": return endTagTable(token);
       case "tbody": case "tfoot": case "thead":
@@ -2466,41 +2496,41 @@ class InRowPhase extends Phase {
 
   // the rest
   bool processEOF() {
-    parser.phases["inTable"].processEOF();
+    parser._inTablePhase.processEOF();
     return false;
   }
 
-  Map processSpaceCharacters(token) {
-    return parser.phases["inTable"].processSpaceCharacters(token);
+  Token processSpaceCharacters(SpaceCharactersToken token) {
+    return parser._inTablePhase.processSpaceCharacters(token);
   }
 
-  Map processCharacters(token) {
-    return parser.phases["inTable"].processCharacters(token);
+  Token processCharacters(CharactersToken token) {
+    return parser._inTablePhase.processCharacters(token);
   }
 
-  void startTagTableCell(token) {
+  void startTagTableCell(StartTagToken token) {
     clearStackToTableRowContext();
     tree.insertElement(token);
-    parser.phase = parser.phases["inCell"];
+    parser.phase = parser._inCellPhase;
     tree.activeFormattingElements.add(Marker);
   }
 
-  Map startTagTableOther(token) {
+  Token startTagTableOther(StartTagToken token) {
     bool ignoreEndTag = ignoreEndTagTr();
-    endTagTr(impliedTagToken("tr"));
+    endTagTr(new EndTagToken("tr", data: {}));
     // XXX how are we sure it's always ignored in the innerHTML case?
     return ignoreEndTag ? null : token;
   }
 
-  Map startTagOther(token) {
-    return parser.phases["inTable"].processStartTag(token);
+  Token startTagOther(StartTagToken token) {
+    return parser._inTablePhase.processStartTag(token);
   }
 
-  void endTagTr(token) {
+  void endTagTr(EndTagToken token) {
     if (!ignoreEndTagTr()) {
       clearStackToTableRowContext();
       tree.openElements.removeLast();
-      parser.phase = parser.phases["inTableBody"];
+      parser.phase = parser._inTableBodyPhase;
     } else {
       // innerHTML case
       assert(parser.innerHTMLMode);
@@ -2508,17 +2538,17 @@ class InRowPhase extends Phase {
     }
   }
 
-  Map endTagTable(token) {
+  Token endTagTable(EndTagToken token) {
     var ignoreEndTag = ignoreEndTagTr();
-    endTagTr(impliedTagToken("tr"));
+    endTagTr(new EndTagToken("tr", data: {}));
     // Reprocess the current tag if the tr end tag was not ignored
     // XXX how are we sure it's always ignored in the innerHTML case?
     return ignoreEndTag ? null : token;
   }
 
-  Map endTagTableRowGroup(token) {
-    if (tree.elementInScope(token["name"], variant: "table")) {
-      endTagTr(impliedTagToken("tr"));
+  Token endTagTableRowGroup(EndTagToken token) {
+    if (tree.elementInScope(token.name, variant: "table")) {
+      endTagTr(new EndTagToken("tr", data: {}));
       return token;
     } else {
       parser.parseError();
@@ -2526,13 +2556,13 @@ class InRowPhase extends Phase {
     }
   }
 
-  void endTagIgnore(token) {
+  void endTagIgnore(EndTagToken token) {
     parser.parseError("unexpected-end-tag-in-table-row",
-        {"name": token["name"]});
+        {"name": token.name});
   }
 
-  Map endTagOther(token) {
-    return parser.phases["inTable"].processEndTag(token);
+  Token endTagOther(EndTagToken token) {
+    return parser._inTablePhase.processEndTag(token);
   }
 }
 
@@ -2540,8 +2570,8 @@ class InCellPhase extends Phase {
   // http://www.whatwg.org/specs/web-apps/current-work///in-cell
   InCellPhase(parser) : super(parser);
 
-  processStartTag(token) {
-    switch (token['name']) {
+  processStartTag(StartTagToken token) {
+    switch (token.name) {
       case "html": return startTagHtml(token);
       case "caption": case "col": case "colgroup": case "tbody": case "td":
       case "tfoot": case "th": case "thead": case "tr":
@@ -2550,8 +2580,8 @@ class InCellPhase extends Phase {
     }
   }
 
-  processEndTag(token) {
-    switch (token['name']) {
+  processEndTag(EndTagToken token) {
+    switch (token.name) {
       case "td": case "th":
         return endTagTableCell(token);
       case "body": case "caption": case "col": case "colgroup": case "html":
@@ -2565,23 +2595,23 @@ class InCellPhase extends Phase {
   // helper
   void closeCell() {
     if (tree.elementInScope("td", variant: "table")) {
-      endTagTableCell(impliedTagToken("td"));
+      endTagTableCell(new EndTagToken("td", data: {}));
     } else if (tree.elementInScope("th", variant: "table")) {
-      endTagTableCell(impliedTagToken("th"));
+      endTagTableCell(new EndTagToken("th", data: {}));
     }
   }
 
   // the rest
   bool processEOF() {
-    parser.phases["inBody"].processEOF();
+    parser._inBodyPhase.processEOF();
     return false;
   }
 
-  Map processCharacters(token) {
-    return parser.phases["inBody"].processCharacters(token);
+  Token processCharacters(CharactersToken token) {
+    return parser._inBodyPhase.processCharacters(token);
   }
 
-  Map startTagTableOther(token) {
+  Token startTagTableOther(StartTagToken token) {
     if (tree.elementInScope("td", variant: "table") ||
       tree.elementInScope("th", variant: "table")) {
       closeCell();
@@ -2593,32 +2623,32 @@ class InCellPhase extends Phase {
     }
   }
 
-  Map startTagOther(token) {
-    return parser.phases["inBody"].processStartTag(token);
+  Token startTagOther(StartTagToken token) {
+    return parser._inBodyPhase.processStartTag(token);
   }
 
-  void endTagTableCell(token) {
-    if (tree.elementInScope(token["name"], variant: "table")) {
-      tree.generateImpliedEndTags(token["name"]);
-      if (tree.openElements.last().name != token["name"]) {
-        parser.parseError("unexpected-cell-end-tag", {"name": token["name"]});
-        popOpenElementsUntil(token["name"]);
+  void endTagTableCell(EndTagToken token) {
+    if (tree.elementInScope(token.name, variant: "table")) {
+      tree.generateImpliedEndTags(token.name);
+      if (tree.openElements.last().name != token.name) {
+        parser.parseError("unexpected-cell-end-tag", {"name": token.name});
+        popOpenElementsUntil(token.name);
       } else {
         tree.openElements.removeLast();
       }
       tree.clearActiveFormattingElements();
-      parser.phase = parser.phases["inRow"];
+      parser.phase = parser._inRowPhase;
     } else {
-      parser.parseError("unexpected-end-tag", {"name": token["name"]});
+      parser.parseError("unexpected-end-tag", {"name": token.name});
     }
   }
 
-  void endTagIgnore(token) {
-    parser.parseError("unexpected-end-tag", {"name": token["name"]});
+  void endTagIgnore(EndTagToken token) {
+    parser.parseError("unexpected-end-tag", {"name": token.name});
   }
 
-  Map endTagImply(token) {
-    if (tree.elementInScope(token["name"], variant: "table")) {
+  Token endTagImply(EndTagToken token) {
+    if (tree.elementInScope(token.name, variant: "table")) {
       closeCell();
       return token;
     } else {
@@ -2627,16 +2657,16 @@ class InCellPhase extends Phase {
     }
   }
 
-  Map endTagOther(token) {
-    return parser.phases["inBody"].processEndTag(token);
+  Token endTagOther(EndTagToken token) {
+    return parser._inBodyPhase.processEndTag(token);
   }
 }
 
 class InSelectPhase extends Phase {
   InSelectPhase(parser) : super(parser);
 
-  processStartTag(token) {
-    switch (token['name']) {
+  processStartTag(StartTagToken token) {
+    switch (token.name) {
       case "html": return startTagHtml(token);
       case "option": return startTagOption(token);
       case "optgroup": return startTagOptgroup(token);
@@ -2648,8 +2678,8 @@ class InSelectPhase extends Phase {
     }
   }
 
-  processEndTag(token) {
-    switch (token['name']) {
+  processEndTag(EndTagToken token) {
+    switch (token.name) {
       case "option": return endTagOption(token);
       case "optgroup": return endTagOptgroup(token);
       case "select": return endTagSelect(token);
@@ -2667,14 +2697,14 @@ class InSelectPhase extends Phase {
     return false;
   }
 
-  Map processCharacters(token) {
-    if (token["data"] == "\u0000") {
+  Token processCharacters(CharactersToken token) {
+    if (token.data == "\u0000") {
       return null;
     }
-    tree.insertText(token["data"]);
+    tree.insertText(token.data);
   }
 
-  void startTagOption(token) {
+  void startTagOption(StartTagToken token) {
     // We need to imply </option> if <option> is the current node.
     if (tree.openElements.last().name == "option") {
       tree.openElements.removeLast();
@@ -2682,7 +2712,7 @@ class InSelectPhase extends Phase {
     tree.insertElement(token);
   }
 
-  void startTagOptgroup(token) {
+  void startTagOptgroup(StartTagToken token) {
     if (tree.openElements.last().name == "option") {
       tree.openElements.removeLast();
     }
@@ -2692,31 +2722,31 @@ class InSelectPhase extends Phase {
     tree.insertElement(token);
   }
 
-  void startTagSelect(token) {
+  void startTagSelect(StartTagToken token) {
     parser.parseError("unexpected-select-in-select");
-    endTagSelect(impliedTagToken("select"));
+    endTagSelect(new EndTagToken("select", data: {}));
   }
 
-  Map startTagInput(token) {
+  Token startTagInput(StartTagToken token) {
     parser.parseError("unexpected-input-in-select");
     if (tree.elementInScope("select", variant: "select")) {
-      endTagSelect(impliedTagToken("select"));
+      endTagSelect(new EndTagToken("select", data: {}));
       return token;
     } else {
       assert(parser.innerHTMLMode);
     }
   }
 
-  Map startTagScript(token) {
-    return parser.phases["inHead"].processStartTag(token);
+  Token startTagScript(StartTagToken token) {
+    return parser._inHeadPhase.processStartTag(token);
   }
 
-  Map startTagOther(token) {
+  Token startTagOther(StartTagToken token) {
     parser.parseError("unexpected-start-tag-in-select",
-        {"name": token["name"]});
+        {"name": token.name});
   }
 
-  void endTagOption(token) {
+  void endTagOption(EndTagToken token) {
     if (tree.openElements.last().name == "option") {
       tree.openElements.removeLast();
     } else {
@@ -2725,7 +2755,7 @@ class InSelectPhase extends Phase {
     }
   }
 
-  void endTagOptgroup(token) {
+  void endTagOptgroup(EndTagToken token) {
     // </optgroup> implicitly closes <option>
     if (tree.openElements.last().name == "option" &&
       tree.openElements[tree.openElements.length - 2].name == "optgroup") {
@@ -2741,7 +2771,7 @@ class InSelectPhase extends Phase {
     }
   }
 
-  void endTagSelect(token) {
+  void endTagSelect(EndTagToken token) {
     if (tree.elementInScope("select", variant: "select")) {
       popOpenElementsUntil("select");
       parser.resetInsertionMode();
@@ -2752,9 +2782,9 @@ class InSelectPhase extends Phase {
     }
   }
 
-  void endTagOther(token) {
+  void endTagOther(EndTagToken token) {
     parser.parseError("unexpected-end-tag-in-select",
-        {"name": token["name"]});
+        {"name": token.name});
   }
 }
 
@@ -2762,8 +2792,8 @@ class InSelectPhase extends Phase {
 class InSelectInTablePhase extends Phase {
   InSelectInTablePhase(parser) : super(parser);
 
-  processStartTag(token) {
-    switch (token['name']) {
+  processStartTag(StartTagToken token) {
+    switch (token.name) {
       case "caption": case "table": case "tbody": case "tfoot": case "thead":
       case "tr": case "td": case "th":
         return startTagTable(token);
@@ -2771,8 +2801,8 @@ class InSelectInTablePhase extends Phase {
     }
   }
 
-  processEndTag(token) {
-    switch (token['name']) {
+  processEndTag(EndTagToken token) {
+    switch (token.name) {
       case "caption": case "table": case "tbody": case "tfoot": case "thead":
       case "tr": case "td": case "th":
         return endTagTable(token);
@@ -2781,36 +2811,36 @@ class InSelectInTablePhase extends Phase {
   }
 
   bool processEOF() {
-    parser.phases["inSelect"].processEOF();
+    parser._inSelectPhase.processEOF();
     return false;
   }
 
-  Map processCharacters(token) {
-    return parser.phases["inSelect"].processCharacters(token);
+  Token processCharacters(CharactersToken token) {
+    return parser._inSelectPhase.processCharacters(token);
   }
 
-  Map startTagTable(token) {
+  Token startTagTable(StartTagToken token) {
     parser.parseError("unexpected-table-element-start-tag-in-select-in-table",
-        {"name": token["name"]});
-    endTagOther(impliedTagToken("select"));
+        {"name": token.name});
+    endTagOther(new EndTagToken("select", data: {}));
     return token;
   }
 
-  Map startTagOther(token) {
-    return parser.phases["inSelect"].processStartTag(token);
+  Token startTagOther(StartTagToken token) {
+    return parser._inSelectPhase.processStartTag(token);
   }
 
-  Map endTagTable(token) {
+  Token endTagTable(EndTagToken token) {
     parser.parseError("unexpected-table-element-end-tag-in-select-in-table",
-        {"name": token["name"]});
-    if (tree.elementInScope(token["name"], variant: "table")) {
-      endTagOther(impliedTagToken("select"));
+        {"name": token.name});
+    if (tree.elementInScope(token.name, variant: "table")) {
+      endTagOther(new EndTagToken("select", data: {}));
       return token;
     }
   }
 
-  Map endTagOther(token) {
-    return parser.phases["inSelect"].processEndTag(token);
+  Token endTagOther(EndTagToken token) {
+    return parser._inSelectPhase.processEndTag(token);
   }
 }
 
@@ -2867,31 +2897,31 @@ class InForeignContentPhase extends Phase {
       "textpath":"textPath"
     };
 
-    var replace = replacements[token["name"]];
+    var replace = replacements[token.name];
     if (replace != null) {
-      token["name"] = replace;
+      token.name = replace;
     }
   }
 
-  Map processCharacters(token) {
-    if (token["data"] == "\u0000") {
-      token["data"] = "\uFFFD";
-    } else if (parser.framesetOK && !allWhitespace(token["data"])) {
+  Token processCharacters(CharactersToken token) {
+    if (token.data == "\u0000") {
+      token.data = "\uFFFD";
+    } else if (parser.framesetOK && !allWhitespace(token.data)) {
       parser.framesetOK = false;
     }
     super.processCharacters(token);
   }
 
-  Map processStartTag(token) {
+  Token processStartTag(StartTagToken token) {
     var currentNode = tree.openElements.last();
-    if (breakoutElements.indexOf(token["name"]) >= 0 ||
-        (token["name"] == "font" &&
-         (token["data"].containsKey("color") ||
-          token["data"].containsKey("face") ||
-          token["data"].containsKey("size")))) {
+    if (breakoutElements.indexOf(token.name) >= 0 ||
+        (token.name == "font" &&
+         (token.data.containsKey("color") ||
+          token.data.containsKey("face") ||
+          token.data.containsKey("size")))) {
 
       parser.parseError("unexpected-html-element-in-foreign-content",
-          {'name': token["name"]});
+          {'name': token.name});
       while (tree.openElements.last().namespace !=
            tree.defaultNamespace &&
            !parser.isHTMLIntegrationPoint(tree.openElements.last()) &&
@@ -2908,27 +2938,27 @@ class InForeignContentPhase extends Phase {
         parser.adjustSVGAttributes(token);
       }
       parser.adjustForeignAttributes(token);
-      token["namespace"] = currentNode.namespace;
+      token.namespace = currentNode.namespace;
       tree.insertElement(token);
-      if (token["selfClosing"]) {
+      if (token.selfClosing) {
         tree.openElements.removeLast();
-        token["selfClosingAcknowledged"] = true;
+        token.selfClosingAcknowledged = true;
       }
     }
   }
 
-  Map processEndTag(token) {
+  Token processEndTag(EndTagToken token) {
     var nodeIndex = tree.openElements.length - 1;
     var node = tree.openElements.last();
-    if (node.name != token["name"]) {
-      parser.parseError("unexpected-end-tag", {"name": token["name"]});
+    if (node.name != token.name) {
+      parser.parseError("unexpected-end-tag", {"name": token.name});
     }
 
     var newToken = null;
     while (true) {
-      if (asciiUpper2Lower(node.name) == token["name"]) {
+      if (asciiUpper2Lower(node.name) == token.name) {
         //XXX this isn't in the spec but it seems necessary
-        if (parser.phase == parser.phases["inTableText"]) {
+        if (parser.phase == parser._inTableTextPhase) {
           InTableTextPhase inTableText = parser.phase;
           inTableText.flushCharacters();
           parser.phase = inTableText.originalPhase;
@@ -2957,39 +2987,39 @@ class InForeignContentPhase extends Phase {
 class AfterBodyPhase extends Phase {
   AfterBodyPhase(parser) : super(parser);
 
-  processStartTag(token) {
-    if (token['name'] == "html") return startTagHtml(token);
+  processStartTag(StartTagToken token) {
+    if (token.name == "html") return startTagHtml(token);
     return startTagOther(token);
   }
 
-  processEndTag(token) {
-    if (token['name'] == "html") return endTagHtml(token);
+  processEndTag(EndTagToken token) {
+    if (token.name == "html") return endTagHtml(token);
     return endTagOther(token);
   }
 
   //Stop parsing
   bool processEOF() => false;
 
-  Map processComment(token) {
+  Token processComment(CommentToken token) {
     // This is needed because data is to be appended to the <html> element
     // here and not to whatever is currently open.
     tree.insertComment(token, tree.openElements[0]);
   }
 
-  Map processCharacters(token) {
+  Token processCharacters(CharactersToken token) {
     parser.parseError("unexpected-char-after-body");
-    parser.phase = parser.phases["inBody"];
+    parser.phase = parser._inBodyPhase;
     return token;
   }
 
-  Map startTagHtml(token) {
-    return parser.phases["inBody"].processStartTag(token);
+  Token startTagHtml(StartTagToken token) {
+    return parser._inBodyPhase.processStartTag(token);
   }
 
-  Map startTagOther(token) {
+  Token startTagOther(StartTagToken token) {
     parser.parseError("unexpected-start-tag-after-body",
-        {"name": token["name"]});
-    parser.phase = parser.phases["inBody"];
+        {"name": token.name});
+    parser.phase = parser._inBodyPhase;
     return token;
   }
 
@@ -2997,14 +3027,14 @@ class AfterBodyPhase extends Phase {
     if (parser.innerHTMLMode) {
       parser.parseError("unexpected-end-tag-after-body-innerhtml");
     } else {
-      parser.phase = parser.phases["afterAfterBody"];
+      parser.phase = parser._afterAfterBodyPhase;
     }
   }
 
-  Map endTagOther(token) {
+  Token endTagOther(EndTagToken token) {
     parser.parseError("unexpected-end-tag-after-body",
-        {"name": token["name"]});
-    parser.phase = parser.phases["inBody"];
+        {"name": token.name});
+    parser.phase = parser._inBodyPhase;
     return token;
   }
 }
@@ -3013,8 +3043,8 @@ class InFramesetPhase extends Phase {
   // http://www.whatwg.org/specs/web-apps/current-work///in-frameset
   InFramesetPhase(parser) : super(parser);
 
-  processStartTag(token) {
-    switch (token['name']) {
+  processStartTag(StartTagToken token) {
+    switch (token.name) {
       case "html": return startTagHtml(token);
       case "frameset": return startTagFrameset(token);
       case "frame": return startTagFrame(token);
@@ -3023,8 +3053,8 @@ class InFramesetPhase extends Phase {
     }
   }
 
-  processEndTag(token) {
-    switch (token['name']) {
+  processEndTag(EndTagToken token) {
+    switch (token.name) {
       case "frameset": return endTagFrameset(token);
       default: return endTagOther(token);
     }
@@ -3039,29 +3069,29 @@ class InFramesetPhase extends Phase {
     return false;
   }
 
-  Map processCharacters(token) {
+  Token processCharacters(CharactersToken token) {
     parser.parseError("unexpected-char-in-frameset");
   }
 
-  void startTagFrameset(token) {
+  void startTagFrameset(StartTagToken token) {
     tree.insertElement(token);
   }
 
-  void startTagFrame(token) {
+  void startTagFrame(StartTagToken token) {
     tree.insertElement(token);
     tree.openElements.removeLast();
   }
 
-  Map startTagNoframes(token) {
-    return parser.phases["inBody"].processStartTag(token);
+  Token startTagNoframes(StartTagToken token) {
+    return parser._inBodyPhase.processStartTag(token);
   }
 
-  Map startTagOther(token) {
+  Token startTagOther(StartTagToken token) {
     parser.parseError("unexpected-start-tag-in-frameset",
-        {"name": token["name"]});
+        {"name": token.name});
   }
 
-  void endTagFrameset(token) {
+  void endTagFrameset(EndTagToken token) {
     if (tree.openElements.last().name == "html") {
       // innerHTML case
       parser.parseError("unexpected-frameset-in-frameset-innerhtml");
@@ -3071,13 +3101,13 @@ class InFramesetPhase extends Phase {
     if (!parser.innerHTMLMode && tree.openElements.last().name != "frameset") {
       // If we're not in innerHTML mode and the the current node is not a
       // "frameset" element (anymore) then switch.
-      parser.phase = parser.phases["afterFrameset"];
+      parser.phase = parser._afterFramesetPhase;
     }
   }
 
-  void endTagOther(token) {
+  void endTagOther(EndTagToken token) {
     parser.parseError("unexpected-end-tag-in-frameset",
-        {"name": token["name"]});
+        {"name": token.name});
   }
 }
 
@@ -3086,44 +3116,44 @@ class AfterFramesetPhase extends Phase {
   // http://www.whatwg.org/specs/web-apps/current-work///after3
   AfterFramesetPhase(parser) : super(parser);
 
-  processStartTag(token) {
-    switch (token['name']) {
+  processStartTag(StartTagToken token) {
+    switch (token.name) {
       case "html": return startTagHtml(token);
       case "noframes": return startTagNoframes(token);
       default: return startTagOther(token);
     }
   }
 
-  processEndTag(token) {
-    switch (token['name']) {
+  processEndTag(EndTagToken token) {
+    switch (token.name) {
       case "html": return endTagHtml(token);
       default: return endTagOther(token);
     }
   }
 
-  //Stop parsing
+  // Stop parsing
   bool processEOF() => false;
 
-  Map processCharacters(token) {
+  Token processCharacters(CharactersToken token) {
     parser.parseError("unexpected-char-after-frameset");
   }
 
-  Map startTagNoframes(token) {
-    return parser.phases["inHead"].processStartTag(token);
+  Token startTagNoframes(StartTagToken token) {
+    return parser._inHeadPhase.processStartTag(token);
   }
 
-  void startTagOther(token) {
+  void startTagOther(StartTagToken token) {
     parser.parseError("unexpected-start-tag-after-frameset",
-        {"name": token["name"]});
+        {"name": token.name});
   }
 
-  void endTagHtml(token) {
-    parser.phase = parser.phases["afterAfterFrameset"];
+  void endTagHtml(EndTagToken token) {
+    parser.phase = parser._afterAfterFramesetPhase;
   }
 
-  void endTagOther(token) {
+  void endTagOther(EndTagToken token) {
     parser.parseError("unexpected-end-tag-after-frameset",
-        {"name": token["name"]});
+        {"name": token.name});
   }
 }
 
@@ -3131,42 +3161,40 @@ class AfterFramesetPhase extends Phase {
 class AfterAfterBodyPhase extends Phase {
   AfterAfterBodyPhase(parser) : super(parser);
 
-  processStartTag(token) {
-    if (token['name'] == 'html') return startTagHtml(token);
+  processStartTag(StartTagToken token) {
+    if (token.name == 'html') return startTagHtml(token);
     return startTagOther(token);
   }
 
   bool processEOF() => false;
 
-  Map processComment(token) {
+  Token processComment(CommentToken token) {
     tree.insertComment(token, tree.document);
   }
 
-  Map processSpaceCharacters(token) {
-    return parser.phases["inBody"].processSpaceCharacters(token);
+  Token processSpaceCharacters(SpaceCharactersToken token) {
+    return parser._inBodyPhase.processSpaceCharacters(token);
   }
 
-  Map processCharacters(token) {
+  Token processCharacters(CharactersToken token) {
     parser.parseError("expected-eof-but-got-char");
-    parser.phase = parser.phases["inBody"];
+    parser.phase = parser._inBodyPhase;
     return token;
   }
 
-  Map startTagHtml(token) {
-    return parser.phases["inBody"].processStartTag(token);
+  Token startTagHtml(StartTagToken token) {
+    return parser._inBodyPhase.processStartTag(token);
   }
 
-  Map startTagOther(token) {
-    parser.parseError("expected-eof-but-got-start-tag",
-      {"name": token["name"]});
-    parser.phase = parser.phases["inBody"];
+  Token startTagOther(StartTagToken token) {
+    parser.parseError("expected-eof-but-got-start-tag", {"name": token.name});
+    parser.phase = parser._inBodyPhase;
     return token;
   }
 
-  Map processEndTag(token) {
-    parser.parseError("expected-eof-but-got-end-tag",
-      {"name": token["name"]});
-    parser.phase = parser.phases["inBody"];
+  Token processEndTag(EndTagToken token) {
+    parser.parseError("expected-eof-but-got-end-tag", {"name": token.name});
+    parser.phase = parser._inBodyPhase;
     return token;
   }
 }
@@ -3174,8 +3202,8 @@ class AfterAfterBodyPhase extends Phase {
 class AfterAfterFramesetPhase extends Phase {
   AfterAfterFramesetPhase(parser) : super(parser);
 
-  processStartTag(token) {
-    switch (token['name']) {
+  processStartTag(StartTagToken token) {
+    switch (token.name) {
       case "html": return startTagHtml(token);
       case "noframes": return startTagNoFrames(token);
       default: return startTagOther(token);
@@ -3184,44 +3212,37 @@ class AfterAfterFramesetPhase extends Phase {
 
   bool processEOF() => false;
 
-  Map processComment(token) {
+  Token processComment(CommentToken token) {
     tree.insertComment(token, tree.document);
   }
 
-  Map processSpaceCharacters(token) {
-    return parser.phases["inBody"].processSpaceCharacters(token);
+  Token processSpaceCharacters(SpaceCharactersToken token) {
+    return parser._inBodyPhase.processSpaceCharacters(token);
   }
 
-  Map processCharacters(token) {
+  Token processCharacters(CharactersToken token) {
     parser.parseError("expected-eof-but-got-char");
   }
 
-  Map startTagHtml(token) {
-    return parser.phases["inBody"].processStartTag(token);
+  Token startTagHtml(StartTagToken token) {
+    return parser._inBodyPhase.processStartTag(token);
   }
 
-  Map startTagNoFrames(token) {
-    return parser.phases["inHead"].processStartTag(token);
+  Token startTagNoFrames(StartTagToken token) {
+    return parser._inHeadPhase.processStartTag(token);
   }
 
-  void startTagOther(token) {
+  void startTagOther(StartTagToken token) {
     parser.parseError("expected-eof-but-got-start-tag",
-        {"name": token["name"]});
+        {"name": token.name});
   }
 
-  Map processEndTag(token) {
+  Token processEndTag(EndTagToken token) {
     parser.parseError("expected-eof-but-got-end-tag",
-        {"name": token["name"]});
+        {"name": token.name});
   }
 }
 
-
-Map impliedTagToken(String name, [String type = "EndTag",
-    Map attributes, bool selfClosing = false]) {
-  if (attributes == null) attributes = {};
-  return {"type": tokenTypes[type], "name": name, "data": attributes,
-      "selfClosing": selfClosing};
-}
 
 /** Error in parsed document. */
 class ParseError implements Exception {

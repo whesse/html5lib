@@ -1,7 +1,12 @@
+/**
+ * A simple tree API that results from parsing html. Intended to be compatible
+ * with dart:html, but right now it resembles the classic JS DOM.
+ */
 #library('simpletree');
+
 #import('base.dart', prefix: 'base');
-#import('../utils.dart');
-#import('../constants.dart');
+#import('../lib/constants.dart');
+#import('../lib/utils.dart');
 
 final Marker = base.Marker;
 
@@ -60,7 +65,7 @@ String _escape(String text, [Map extraReplace]) {
 }
 
 /** Really basic implementation of a DOM-core like thing. */
-class Node extends base.Node {
+class Node extends base.Node<Node> {
   static const int ATTRIBUTE_NODE = 2;
   static const int CDATA_SECTION_NODE = 4;
   static const int COMMENT_NODE = 8;
@@ -80,9 +85,6 @@ class Node extends base.Node {
   int get $dom_nodeType => nodeType;
 
   abstract int get nodeType;
-
-  // This is here so the type system knows we only have Nodes, not base.Nodes.
-  List<Node> get nodes => super.nodes;
 
   String get outerHTML => _addOuterHtml(new StringBuffer()).toString();
 
