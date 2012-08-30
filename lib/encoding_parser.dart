@@ -156,7 +156,7 @@ class EncodingParser {
             try {
               keepParsing = dispatch[1]();
               break;
-            } catch (NoMoreElementsException e) {
+            } on NoMoreElementsException catch (e) {
               keepParsing = false;
               break;
             }
@@ -166,7 +166,7 @@ class EncodingParser {
           break;
         }
       }
-    } catch (NoMoreElementsException e) {
+    } on NoMoreElementsException catch (e) {
       // Catch this here to match behavior of Python's StopIteration
     }
     return encoding;
@@ -364,12 +364,12 @@ class ContentAttrParser {
         try {
           data.skipUntil(isWhitespace);
           return data.slice(oldPosition, data.position);
-        } catch (NoMoreElementsException e) {
+        } on NoMoreElementsException catch (e) {
           //Return the whole remaining value
           return data.slice(oldPosition);
         }
       }
-    } catch (NoMoreElementsException e) {
+    } on NoMoreElementsException catch (e) {
       return null;
     }
   }
