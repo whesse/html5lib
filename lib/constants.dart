@@ -1,11 +1,12 @@
 #library('constants');
 
 #import('utils.dart');
+#import('token.dart');
 
 // TODO(jmesserly): fix up the const lists. For the bigger ones, we need faster
 // lookup than linear search "indexOf". In the Python code they were frozensets.
 
-final Object EOF = null;
+final String EOF = null;
 
 
 class ReparseException implements Exception {
@@ -3159,36 +3160,4 @@ final Map<String, String> encodings = const {
   'windows936': 'gbk',
   'x-x-big5': 'big5'
 };
-
-
-final DoctypeToken = 0;
-final CharactersToken = 1;
-final SpaceCharactersToken = 2;
-final StartTagToken = 3;
-final EndTagToken = 4;
-final EmptyTagToken = 5;
-final CommentToken = 6;
-final ParseErrorToken = 8;
-
-final tokenTypes = const {
-  "Doctype": DoctypeToken,
-  "Characters": CharactersToken,
-  "SpaceCharacters": SpaceCharactersToken,
-  "StartTag": StartTagToken,
-  "EndTag": EndTagToken,
-  "EmptyTag": EmptyTagToken,
-  "Comment": CommentToken,
-  "ParseError": ParseErrorToken,
-};
-
-
-bool isTagTokenType(int tagType) {
-  switch (tagType) {
-    case StartTagToken:
-    case EndTagToken:
-    case EmptyTagToken:
-      return true;
-  }
-  return false;
-}
 
