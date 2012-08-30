@@ -334,9 +334,14 @@ class TreeVisitor {
   visitNodeFallback(Node node) => visitChildren(node);
 
   visitDocument(Document node) => visitNodeFallback(node);
+
   visitDocumentType(DocumentType node) => visitNodeFallback(node);
+
   visitTextNode(TextNode node) => visitNodeFallback(node);
+
+  // TODO(jmesserly): visit attributes.
   visitElement(Element node) => visitNodeFallback(node);
+
   visitCommentNode(CommentNode node) => visitNodeFallback(node);
 
   // Note: visits document by default because DocumentFragment is a Document.
@@ -344,17 +349,18 @@ class TreeVisitor {
 }
 
 /**
- * Converts the DOM tree into another DOM tree with code markup suitable for
+ * Converts the DOM tree into an HTML string with code markup suitable for
  * displaying the HTML's source code with CSS colors for different parts of the
  * markup. See also [CodeMarkupVisitor].
  */
-htmlToCodeMarkup(Node node) {
+String htmlToCodeMarkup(Node node) {
   return (new CodeMarkupVisitor()..visit(node)).toString();
 }
 
 /**
- * Converts the DOM tree into another DOM tree with code markup. See also
- * [htmlToCodeMarkup].
+ * Converts the DOM tree into an HTML string with code markup suitable for
+ * displaying the HTML's source code with CSS colors for different parts of the
+ * markup. See also [htmlToCodeMarkup].
  */
 class CodeMarkupVisitor extends TreeVisitor {
   final StringBuffer _str;
