@@ -562,22 +562,10 @@ final headingElements = const [
   "h6"
 ];
 
+// http://dev.w3.org/html5/markup/syntax.html#void-elements
 final voidElements = const [
-  "base",
-  "command",
-  "event-source",
-  "link",
-  "meta",
-  "hr",
-  "br",
-  "img",
-  "embed",
-  "param",
-  "area",
-  "col",
-  "input",
-  "source",
-  "track"
+  "area", "base", "br", "col", "command", "embed", "hr", "img", "input",
+  "keygen", "link", "meta", "param", "source", "track", "wbr"
 ];
 
 final cdataElements = const ['title', 'textarea'];
