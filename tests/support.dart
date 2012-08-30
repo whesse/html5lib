@@ -37,29 +37,8 @@ Future<List<String>> getDataFiles(String subdirectory, [FileMatcher matcher]) {
   return completer.future;
 }
 
-Function convert(int stripChars) {
-  // convert the output of str(document) to the format used in the testcases
-  convertData(data) {
-    var rv = [];
-    for (var line in data.split("\n")) {
-      if (line.startsWith("|")) {
-        rv.add(line.substring(stripChars));
-      } else {
-        rv.add(line);
-      }
-    }
-    return Strings.join(rv, "\n");
-  }
-  return convertData;
-}
-
-Function get convertExpected => convert(2);
-
-// TODO(jmesserly): make this class simpler. There's unnecessary
-// inconsistency between how we print the tree for tests, and the expected
-// format (see convert/convertExpected above).
-// Also we should probably split the file on empty lines to find the test cases,
-// rather than parsing line by line and looking for a leading #.
+// TODO(jmesserly): make this class simpler. We could probably split on
+// "\n#" instead of newline and remove a lot of code.
 class TestData implements Iterable<Map> {
   final String _text;
   final String newTestHeading;
@@ -153,8 +132,14 @@ class TestSerializer extends TreeVisitor {
     _indent = value;
   }
 
+  void _newline() {
+    if (_str.length > 0) _str.add('\n');
+    _str.add('|$_spaces');
+  }
+
   visitNodeFallback(Node node) {
-    _str.add('\n|${_spaces}$node');
+    _newline();
+    _str.add(node);
     visitChildren(node);
   }
 
@@ -165,12 +150,14 @@ class TestSerializer extends TreeVisitor {
   }
 
   visitDocument(Document node) {
-    _str.add(node);
-    visitChildren(node);
+    indent += 1;
+    for (var child in node.nodes) visit(child);
+    indent -= 1;
   }
 
   visitElement(Element node) {
-    _str.add('\n|${_spaces}$node');
+    _newline();
+    _str.add(node);
     if (node.attributes.length > 0) {
       indent += 2;
       var keys = new List.from(node.attributes.getKeys());
@@ -181,7 +168,8 @@ class TestSerializer extends TreeVisitor {
           AttributeName attr = key;
           key = "${attr.prefix} ${attr.name}";
         }
-        _str.add('\n|${_spaces}$key="$v"');
+        _newline();
+        _str.add('$key="$v"');
       }
       indent -= 2;
     }

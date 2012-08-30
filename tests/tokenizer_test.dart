@@ -212,20 +212,6 @@ void expectTokensMatch(List expectedTokens, List receivedTokens,
   }
 }
 
-// TODO(jmesserly): I had to use this trampoline to get reasonable stack traces
-// from the unit test framework.
-/*
-void runTokenizerTest(Map testInfo) {
-  try {
-    runTokenizerTest2(testInfo);
-  } catch (var e, var trace) {
-    print('exception $e');
-    print('trace $trace');
-    exit(1);
-  }
-}
-*/
-
 void runTokenizerTest(Map testInfo) {
   // XXX - move this out into the setup function
   // concatenate all consecutive character tokens into a single token

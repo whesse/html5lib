@@ -71,6 +71,8 @@ abstract class Node {
   /** A map holding name, value pairs for attributes of the node. */
   Map attributes;
 
+  // TODO(jmesserly): this collection needs to handle addition and removal of
+  // items and automatically fix the parent pointer, like dart:html does.
   /**
    * A list of child nodes of the current node. This must
    * include all elements but not necessarily other node types.
