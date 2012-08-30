@@ -1,5 +1,7 @@
+/** This library contains token types used by the html5 tokenizer. */
 #library('token');
 
+/** An html5 token. */
 class Token {
   abstract int get kind;
 

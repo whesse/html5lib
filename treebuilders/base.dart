@@ -5,100 +5,12 @@
 #import('../lib/list_proxy.dart');
 #import('../lib/token.dart');
 #import('../lib/utils.dart');
+#import('simpletree.dart');
 
 // The scope markers are inserted when entering object elements,
 // marquees, table cells, and table captions, and are used to prevent formatting
 // from "leaking" into tables, object elements, and marquees.
-final Marker = null;
-
-// TODO(jmesserly): the generic type here is strange. But it seems the only
-// way to get the right type on childNodes. (and overriding that field didn't
-// work on the VM in checked mode.
-// We should probably get rid of this entire abstraction layer, though.
-/** Node representing an item in the tree. */
-class Node<T extends Node> {
-  /** The tag name associated with the node. */
-  final String name;
-
-  /** The parent of the current node (or null for the document node). */
-  Node parent;
-
-  /** A map holding name, value pairs for attributes of the node. */
-  Map attributes;
-
-  /**
-   * A list of child nodes of the current node. This must
-   * include all elements but not necessarily other node types.
-   */
-  final List<T> childNodes;
-
-  Node(this.name) : attributes = {}, childNodes = <T>[];
-
-  /**
-   * Insert [node] as a child of the current node
-   */
-  abstract void appendChild(node);
-
-  /**
-   * Insert [data] as text in the current node, positioned before the
-   * start of node [refNode] or to the end of the node's text.
-   */
-  abstract insertText(String data, [Node refNode]);
-
-  /**
-   * Insert [node] as a child of the current node, before [refNode] in the
-   * list of child nodes. Raises [UnsupportedOperationException] if [refNode]
-   * is not a child of the current node.
-   */
-  abstract insertBefore(Node node, Node refNode);
-
-  /**
-   * Remove [node] from the children of the current node
-   */
-  abstract void removeChild(Node node);
-
-  /**
-   * Return a shallow copy of the current node i.e. a node with the same
-   * name and attributes but with no parent or child nodes.
-   */
-  abstract Node cloneNode();
-
-  // TODO(jmesserly): should this be a property?
-  /**
-   * Return true if the node has children or text, false otherwise.
-   */
-  abstract bool hasContent();
-
-  String get namespace => null;
-
-  Pair get nameTuple => null;
-
-  // TODO(jmesserly): do we need this here?
-  /** The value of the current node (applies to text nodes and comments). */
-  String get value => null;
-
-  String toString() {
-    if (attributes.length == 0) {
-      return "<$name>";
-    }
-    var attrStr = new StringBuffer();
-    attributes.forEach((k, v) => attrStr.add(' $k=$v'));
-    return "<${name}attrStr>";
-  }
-
-  /**
-   * Move all the children of the current node to [newParent].
-   * This is needed so that trees that don't store text as nodes move the
-   * text in the correct way.
-   */
-  void reparentChildren(Node newParent) {
-    //XXX - should this method be made more general?
-    for (var child in childNodes) {
-      newParent.appendChild(child);
-    }
-    childNodes.clear();
-  }
-}
+final Node Marker = null;
 
 class ActiveFormattingElements extends ListProxy<Node> {
   ActiveFormattingElements() : super();
@@ -107,7 +19,7 @@ class ActiveFormattingElements extends ListProxy<Node> {
   void add(Node node) {
     int equalCount = 0;
     if (node != Marker) {
-      for (var element in reversed(this)) {
+      for (Node element in reversed(this)) {
         if (element == Marker) {
           break;
         }
@@ -149,7 +61,7 @@ bool _nodesEqual(Node node1, Node node2) {
 }
 
 /** Base treebuilder implementation. */
-abstract class TreeBuilder<
+abstract class BaseTreeBuilder<
     // TODO(jmesserly): is there a better design here?
     // This seems like the only way to get accurate types.
     Document extends Node,
@@ -176,7 +88,7 @@ abstract class TreeBuilder<
    */
   bool insertFromTable;
 
-  TreeBuilder(bool namespaceHTMLElements)
+  BaseTreeBuilder(bool namespaceHTMLElements)
       : defaultNamespace = namespaceHTMLElements ? Namespaces.html : null,
         openElements = <Node>[],
         activeFormattingElements = new ActiveFormattingElements() {
@@ -241,8 +153,8 @@ abstract class TreeBuilder<
       }
     }
 
-    for (var node in reversed(openElements)) {
-      if (node.name == target && !exactNode ||
+    for (Node node in reversed(openElements)) {
+      if (node.tagName == target && !exactNode ||
           node == target && exactNode) {
         return true;
       } else if (invert !=
@@ -290,10 +202,10 @@ abstract class TreeBuilder<
 
       // Step 8
       entry = activeFormattingElements[i];
-      var clone = entry.cloneNode(); // Mainly to get a new copy of the attributes
+      var clone = entry.clone(); // Mainly to get a new copy of the attributes
 
       // Step 9
-      var element = insertElement(new StartTagToken(clone.name,
+      var element = insertElement(new StartTagToken(clone.tagName,
           namespace: clone.namespace, data: clone.attributes));
 
       // Step 10
@@ -319,12 +231,12 @@ abstract class TreeBuilder<
    * return null
    */
   Node elementInActiveFormattingElements(String name) {
-    for (var item in reversed(activeFormattingElements)) {
+    for (Node item in reversed(activeFormattingElements)) {
       // Check for Marker first because if it's a Marker it doesn't have a
       // name attribute.
       if (item == Marker) {
         break;
-      } else if (item.name == name) {
+      } else if (item.tagName == name) {
         return item;
       }
     }
@@ -334,19 +246,19 @@ abstract class TreeBuilder<
   void insertRoot(Token token) {
     var element = createElement(token);
     openElements.add(element);
-    document.appendChild(element);
+    document.$dom_appendChild(element);
   }
 
   void insertDoctype(DoctypeToken token) {
     var doctype = newDoctype(token.name, token.publicId, token.systemId);
-    document.appendChild(doctype);
+    document.$dom_appendChild(doctype);
   }
 
   void insertComment(Token token, [Node parent]) {
     if (parent == null) {
       parent = openElements.last();
     }
-    parent.appendChild(newComment(token.data));
+    parent.$dom_appendChild(newComment(token.data));
   }
 
     /** Create an element but don't insert it anywhere */
@@ -370,7 +282,7 @@ abstract class TreeBuilder<
     if (namespace == null) namespace = defaultNamespace;
     Element element = newElement(name, namespace);
     element.attributes = token.data;
-    openElements.last().appendChild(element);
+    openElements.last().$dom_appendChild(element);
     openElements.add(element);
     return element;
   }
@@ -378,7 +290,7 @@ abstract class TreeBuilder<
   Element insertElementTable(token) {
     /** Create an element and insert it into the tree */
     var element = createElement(token);
-    if (tableInsertModeElements.indexOf(openElements.last().name) == -1) {
+    if (tableInsertModeElements.indexOf(openElements.last().tagName) == -1) {
       return insertElementNormal(token);
     } else {
       // We should be in the InTable mode. This means we want to do
@@ -399,7 +311,7 @@ abstract class TreeBuilder<
     if (parent == null) parent = openElements.last();
 
     if (!insertFromTable || insertFromTable &&
-        tableInsertModeElements.indexOf(openElements.last().name) == -1) {
+        tableInsertModeElements.indexOf(openElements.last().tagName) == -1) {
       parent.insertText(data);
     } else {
       // We should be in the InTable mode. This means we want to do
@@ -420,8 +332,8 @@ abstract class TreeBuilder<
     var lastTable = null;
     var fosterParent = null;
     var insertBefore = null;
-    for (var elm in reversed(openElements)) {
-      if (elm.name == "table") {
+    for (Node elm in reversed(openElements)) {
+      if (elm.tagName == "table") {
         lastTable = elm;
         break;
       }
@@ -442,7 +354,7 @@ abstract class TreeBuilder<
   }
 
   void generateImpliedEndTags([String exclude]) {
-    var name = openElements.last().name;
+    var name = openElements.last().tagName;
     // XXX td, th and tr are not actually needed
     if (name != exclude && const ["dd", "dt", "li", "option", "optgroup", "p",
         "rp", "rt"].indexOf(name) >= 0) {

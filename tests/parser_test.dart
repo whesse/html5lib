@@ -13,18 +13,12 @@
 // TODO(jmesserly): presumably we want this on by default?
 final checkParseErrors = false;
 
-// XXX - There should just be one function here but for some reason the testcase
-// format differs from the treedump format by a single space character
-String convertTreeDump(String data) {
-  return Strings.join(slice(convert(3)(data).split("\n"), 1), "\n");
-}
-
 String namespaceHtml(String expected) {
   // TODO(jmesserly): this is a workaround for http://dartbug.com/2979
   // We can't do regex replace directly =\
   // final namespaceExpected = const RegExp(@"^(\s*)<(\S+)>", multiLine: true);
   // return expected.replaceAll(namespaceExpected, @"$1<html $2>");
-  final namespaceExpected = const RegExp(@"^(\s*)<(\S+)>");
+  final namespaceExpected = const RegExp(@"^(\|\s*)<(\S+)>");
   var lines =  expected.split("\n");
   for (int i = 0; i < lines.length; i++) {
     var match = namespaceExpected.firstMatch(lines[i]);
@@ -67,9 +61,8 @@ void runParserTest(String groupName, String innerHTML, String input,
         "\n\nException:\n$e\n\nStack trace:\n$stack");
   }
 
-  var output = convertTreeDump(p.tree.testSerializer(document));
+  var output = testSerializer(document);
 
-  expected = convertExpected(expected);
   if (namespaceHTMLElements) {
     expected = namespaceHtml(expected);
   }

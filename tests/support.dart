@@ -37,31 +37,8 @@ Future<List<String>> getDataFiles(String subdirectory, [FileMatcher matcher]) {
   return completer.future;
 }
 
-Function convert(int stripChars) {
-  // convert the output of str(document) to the format used in the testcases
-  convertData(data) {
-    var rv = [];
-    for (var line in data.split("\n")) {
-      if (line.startsWith("|")) {
-        rv.add(line.substring(stripChars));
-      } else {
-        rv.add(line);
-      }
-    }
-    return Strings.join(rv, "\n");
-  }
-  return convertData;
-}
-
-Function get convertExpected => convert(2);
-
-// TODO(jmesserly): make this class simpler. There's unnecessary
-// inconsistency between how we print the tree for tests, and the expected
-// format (see convert/convertExpected above).
-// Also we should probably split the file on empty lines to find the test cases,
-// rather than parsing line by line and looking for a leading #.
-// Lastly, the "printTree" function for tests should be split out of the tree
-// nodes themselves.
+// TODO(jmesserly): make this class simpler. We could probably split on
+// "\n#" instead of newline and remove a lot of code.
 class TestData implements Iterable<Map> {
   final String _text;
   final String newTestHeading;
@@ -122,5 +99,80 @@ class TestData implements Iterable<Map> {
       }
     });
     return data;
+  }
+}
+
+/**
+ * Serialize the [document] into the html5 test data format.
+ */
+testSerializer(Document document) {
+  return (new TestSerializer()..visit(document)).toString();
+}
+
+/** Serializes the DOM into test format. See [testSerializer]. */
+class TestSerializer extends TreeVisitor {
+  final StringBuffer _str;
+  int _indent = 0;
+  String _spaces = '';
+
+  TestSerializer() : _str = new StringBuffer();
+
+  String toString() => _str.toString();
+
+  int get indent => _indent;
+
+  set indent(int value) {
+    if (_indent == value) return;
+
+    var arr = new List<int>(value);
+    for (int i = 0; i < value; i++) {
+      arr[i] = 32;
+    }
+    _spaces = new String.fromCharCodes(arr);
+    _indent = value;
+  }
+
+  void _newline() {
+    if (_str.length > 0) _str.add('\n');
+    _str.add('|$_spaces');
+  }
+
+  visitNodeFallback(Node node) {
+    _newline();
+    _str.add(node);
+    visitChildren(node);
+  }
+
+  visitChildren(Node node) {
+    indent += 2;
+    for (var child in node.nodes) visit(child);
+    indent -= 2;
+  }
+
+  visitDocument(Document node) {
+    indent += 1;
+    for (var child in node.nodes) visit(child);
+    indent -= 1;
+  }
+
+  visitElement(Element node) {
+    _newline();
+    _str.add(node);
+    if (node.attributes.length > 0) {
+      indent += 2;
+      var keys = new List.from(node.attributes.getKeys());
+      keys.sort((x, y) => x.compareTo(y));
+      for (var key in keys) {
+        var v = node.attributes[key];
+        if (key is AttributeName) {
+          AttributeName attr = key;
+          key = "${attr.prefix} ${attr.name}";
+        }
+        _newline();
+        _str.add('$key="$v"');
+      }
+      indent -= 2;
+    }
+    visitChildren(node);
   }
 }
