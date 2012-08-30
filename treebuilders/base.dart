@@ -19,7 +19,7 @@ class ActiveFormattingElements extends ListProxy<Node> {
   void add(Node node) {
     int equalCount = 0;
     if (node != Marker) {
-      for (var element in reversed(this)) {
+      for (Node element in reversed(this)) {
         if (element == Marker) {
           break;
         }
@@ -153,8 +153,8 @@ abstract class BaseTreeBuilder<
       }
     }
 
-    for (var node in reversed(openElements)) {
-      if (node.name == target && !exactNode ||
+    for (Node node in reversed(openElements)) {
+      if (node.tagName == target && !exactNode ||
           node == target && exactNode) {
         return true;
       } else if (invert !=
@@ -231,12 +231,12 @@ abstract class BaseTreeBuilder<
    * return null
    */
   Node elementInActiveFormattingElements(String name) {
-    for (var item in reversed(activeFormattingElements)) {
+    for (Node item in reversed(activeFormattingElements)) {
       // Check for Marker first because if it's a Marker it doesn't have a
       // name attribute.
       if (item == Marker) {
         break;
-      } else if (item.name == name) {
+      } else if (item.tagName == name) {
         return item;
       }
     }
@@ -332,8 +332,8 @@ abstract class BaseTreeBuilder<
     var lastTable = null;
     var fosterParent = null;
     var insertBefore = null;
-    for (var elm in reversed(openElements)) {
-      if (elm.name == "table") {
+    for (Node elm in reversed(openElements)) {
+      if (elm.tagName == "table") {
         lastTable = elm;
         break;
       }

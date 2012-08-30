@@ -62,6 +62,7 @@ abstract class Node {
   static const int PROCESSING_INSTRUCTION_NODE = 7;
   static const int TEXT_NODE = 3;
 
+  // TODO(jmesserly): this should be on Element
   /** The tag name associated with the node. */
   final String tagName;
 

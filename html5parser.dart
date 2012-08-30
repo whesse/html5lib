@@ -229,24 +229,24 @@ class HTMLParser {
     framesetOK = true;
   }
 
-  bool isHTMLIntegrationPoint(element) {
-    if (element.name == "annotation-xml" &&
+  bool isHTMLIntegrationPoint(Node element) {
+    if (element.tagName == "annotation-xml" &&
         element.namespace == Namespaces.mathml) {
       var enc = element.attributes["encoding"];
       if (enc != null) enc = asciiUpper2Lower(enc);
       return enc == "text/html" || enc == "application/xhtml+xml";
     } else {
       return htmlIntegrationPointElements.indexOf(
-          new Pair(element.namespace, element.name)) >= 0;
+          new Pair(element.namespace, element.tagName)) >= 0;
     }
   }
 
-  bool isMathMLTextIntegrationPoint(element) {
+  bool isMathMLTextIntegrationPoint(Node element) {
     return mathmlTextIntegrationPointElements.indexOf(
-        new Pair(element.namespace, element.name)) >= 0;
+        new Pair(element.namespace, element.tagName)) >= 0;
   }
 
-  bool inForeignContent(token, int type) {
+  bool inForeignContent(Token token, int type) {
     if (tree.openElements.length == 0) return false;
 
     var node = tree.openElements.last();
@@ -254,8 +254,8 @@ class HTMLParser {
 
     if (isMathMLTextIntegrationPoint(node)) {
       if (type == TokenKind.startTag &&
-          token.name != "mglyph" &&
-          token.name != "malignmark")  {
+          (token as StartTagToken).name != "mglyph" &&
+          (token as StartTagToken).name != "malignmark")  {
         return false;
       }
       if (type == TokenKind.characters || type == TokenKind.spaceCharacters) {
@@ -264,7 +264,7 @@ class HTMLParser {
     }
 
     if (node.tagName == "annotation-xml" && type == TokenKind.startTag &&
-        token.name == "svg") {
+        (token as StartTagToken).name == "svg") {
       return false;
     }
 
@@ -469,8 +469,8 @@ class HTMLParser {
   void resetInsertionMode() {
     // The name of this method is mostly historical. (It's also used in the
     // specification.)
-    for (var node in reversed(tree.openElements)) {
-      var nodeName = node.name;
+    for (Node node in reversed(tree.openElements)) {
+      var nodeName = node.tagName;
       bool last = node == tree.openElements[0];
       if (last) {
         assert(innerHTMLMode);
@@ -1018,8 +1018,8 @@ class AfterHeadPhase extends Phase {
       {"name": token.name});
     tree.openElements.add(tree.headPointer);
     parser._inHeadPhase.processStartTag(token);
-    for (var node in reversed(tree.openElements)) {
-      if (node.name == "head") {
+    for (Node node in reversed(tree.openElements)) {
+      if (node.tagName == "head") {
         removeFromList(tree.openElements, node);
         break;
       }
@@ -1168,8 +1168,8 @@ class InBodyPhase extends Phase {
     }
   }
 
-  bool isMatchingFormattingElement(node1, node2) {
-    if (node1.name != node2.name || node1.namespace != node2.namespace) {
+  bool isMatchingFormattingElement(Node node1, Node node2) {
+    if (node1.tagName != node2.tagName || node1.namespace != node2.namespace) {
       return false;
     } else if (node1.attributes.length != node2.attributes.length) {
       return false;
@@ -1189,7 +1189,7 @@ class InBodyPhase extends Phase {
     var element = tree.openElements.last();
 
     var matchingElements = [];
-    for (var node in reversed(tree.activeFormattingElements)) {
+    for (Node node in reversed(tree.activeFormattingElements)) {
       if (node === Marker) {
         break;
       } else if (isMatchingFormattingElement(node, element)) {
@@ -1206,8 +1206,8 @@ class InBodyPhase extends Phase {
 
   // the real deal
   bool processEOF() {
-    for (var node in reversed(tree.openElements)) {
-      switch (node.name) {
+    for (Node node in reversed(tree.openElements)) {
+      switch (node.tagName) {
         case "dd": case "dt": case "li": case "p": case "tbody": case "td":
         case "tfoot": case "th": case "thead": case "tr": case "body":
         case "html":
@@ -1326,13 +1326,13 @@ class InBodyPhase extends Phase {
                                 "dt": const ["dt", "dd"],
                                 "dd": const ["dt", "dd"]};
     var stopNames = stopNamesMap[token.name];
-    for (var node in reversed(tree.openElements)) {
-      if (stopNames.indexOf(node.name) >= 0) {
-        parser.phase.processEndTag(new EndTagToken(node.name, data: {}));
+    for (Node node in reversed(tree.openElements)) {
+      if (stopNames.indexOf(node.tagName) >= 0) {
+        parser.phase.processEndTag(new EndTagToken(node.tagName, data: {}));
         break;
       }
       if (specialElements.indexOf(node.nameTuple) >= 0 &&
-          const ["address", "div", "p"].indexOf(node.name) == -1) {
+          const ["address", "div", "p"].indexOf(node.tagName) == -1) {
         break;
       }
     }
@@ -1620,8 +1620,8 @@ class InBodyPhase extends Phase {
       parser.parseError();
       return;
     } else if (tree.openElements.last().tagName != "body") {
-      for (var node in slice(tree.openElements, 2)) {
-        switch (node.name) {
+      for (Node node in slice(tree.openElements, 2)) {
+        switch (node.tagName) {
           case "dd": case "dt": case "li": case "optgroup": case "option":
           case "p": case "rp": case "rt": case "tbody": case "td": case "tfoot":
           case "th": case "thead": case "tr": case "body": case "html":
@@ -1629,7 +1629,7 @@ class InBodyPhase extends Phase {
         }
         // Not sure this is the correct name for the parse error
         parser.parseError("expected-one-end-tag-but-got-another",
-            {"expectedName": "body", "gotName": node.name});
+            {"expectedName": "body", "gotName": node.tagName});
         break;
       }
     }
@@ -1750,7 +1750,7 @@ class InBodyPhase extends Phase {
       // Start of the adoption agency algorithm proper
       var afeIndex = tree.openElements.indexOf(formattingElement);
       Node furthestBlock = null;
-      for (var element in slice(tree.openElements, afeIndex)) {
+      for (Node element in slice(tree.openElements, afeIndex)) {
         if (specialElements.indexOf(element.nameTuple) >= 0) {
           furthestBlock = element;
           break;
@@ -1878,8 +1878,8 @@ class InBodyPhase extends Phase {
   }
 
   void endTagOther(EndTagToken token) {
-    for (var node in reversed(tree.openElements)) {
-      if (node.name == token.name) {
+    for (Node node in reversed(tree.openElements)) {
+      if (node.tagName == token.name) {
         tree.generateImpliedEndTags(exclude: token.name);
         if (tree.openElements.last().tagName != token.name) {
           parser.parseError("unexpected-end-tag", {"name": token.name});

@@ -1,7 +1,7 @@
 html5lib in Pure Dart
 =====================
 
-This is a pure [Dart][dart] [html5 parser][html5lib]. It's a port of
+This is a pure [Dart][dart] [html5 parser][html5parse]. It's a port of
 [html5lib](http://code.google.com/p/html5lib/) from Python. Since it's 100%
 Dart you can use it safely from a script or server side app.
 
@@ -31,7 +31,7 @@ Parsing HTML is easy!
     main() {
       var document = html5parser.parse(
         '<body>Hello world! <a href="www.html5rocks.com">HTML5 rocks!');
-      print(document.toxml());
+      print(document.outerHTML);
     }
 
 You can pass a String, [RandomAccessFile][file], or list of bytes to `parse`.
@@ -85,8 +85,9 @@ All tests should be passing.
 
 
 [dart]: http://www.dartlang.org/
-[html5lib]: http://dev.w3.org/html5/spec/parsing.html
+[html5parse]: http://dev.w3.org/html5/spec/parsing.html
 [d_html]: http://api.dartlang.org/docs/continuous/dart_html.html
 [files]: http://html5lib.googlecode.com/hg/python/html5lib/
 [pub]: http://www.dartlang.org/docs/pub-package-manager/
 [file]: http://api.dartlang.org/docs/continuous/dart_io/RandomAccessFile.html
+
