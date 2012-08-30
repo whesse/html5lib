@@ -39,7 +39,7 @@ void runParserTest(String groupName, String innerHTML, String input,
   HTMLParser p;
   try {
     p = new HTMLParser(builder);
-  } catch (DataLossWarning w) {
+  } on DataLossWarning catch (w) {
     return;
   }
 
@@ -51,7 +51,7 @@ void runParserTest(String groupName, String innerHTML, String input,
     } else {
       try {
         document = p.parse(tokenizer);
-      } catch (DataLossWarning w) {
+      } on DataLossWarning catch (w) {
         return;
       }
     }

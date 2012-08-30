@@ -190,7 +190,7 @@ class HTMLParser {
       try {
         mainLoop();
         break;
-      } catch (ReparseException e) {
+      } on ReparseException catch (e) {
         reset();
       }
     }
