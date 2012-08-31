@@ -48,7 +48,7 @@ class AttributeName implements Hashable, Comparable {
 
 // TODO(jmesserly): move code away from $dom methods
 /** Really basic implementation of a DOM-core like Node. */
-abstract class Node extends NodeSelector {
+abstract class Node implements Hashable {
   static const int ATTRIBUTE_NODE = 2;
   static const int CDATA_SECTION_NODE = 4;
   static const int COMMENT_NODE = 8;
@@ -61,6 +61,9 @@ abstract class Node extends NodeSelector {
   static const int NOTATION_NODE = 12;
   static const int PROCESSING_INSTRUCTION_NODE = 7;
   static const int TEXT_NODE = 3;
+
+  static int _lastHashCode = 0;
+  final int _hashCode;
 
   // TODO(jmesserly): this should be on Element
   /** The tag name associated with the node. */
@@ -80,7 +83,10 @@ abstract class Node extends NodeSelector {
    */
   final List<Node> nodes;
 
-  Node(this.tagName) : attributes = {}, nodes = <Node>[];
+  Node(this.tagName)
+      : attributes = {},
+        nodes = <Node>[],
+        _hashCode = ++_lastHashCode;
 
   /**
    * Return a shallow copy of the current node i.e. a node with the same
@@ -117,13 +123,15 @@ abstract class Node extends NodeSelector {
 
   String toString() => tagName;
 
+  int hashCode() => _hashCode;
+
   /**
    * Insert [node] as a child of the current node
    */
   void $dom_appendChild(Node node) {
-    if (node is TextNode && nodes.length > 0 &&
-        nodes.last() is TextNode) {
-      TextNode last = nodes.last();
+    if (node is Text && nodes.length > 0 &&
+        nodes.last() is Text) {
+      Text last = nodes.last();
       last.value = '${last.value}${node.value}';
     } else {
       nodes.add(node);
@@ -137,9 +145,9 @@ abstract class Node extends NodeSelector {
    */
   void insertText(String data, [Node refNode]) {
     if (refNode == null) {
-      $dom_appendChild(new TextNode(data));
+      $dom_appendChild(new Text(data));
     } else {
-      insertBefore(new TextNode(data), refNode);
+      insertBefore(new Text(data), refNode);
     }
   }
 
@@ -150,9 +158,9 @@ abstract class Node extends NodeSelector {
    */
   void insertBefore(Node node, Node refNode) {
     int index = nodes.indexOf(refNode);
-    if (node is TextNode && index > 0 &&
-        nodes[index - 1] is TextNode) {
-      TextNode last = nodes[index - 1];
+    if (node is Text && index > 0 &&
+        nodes[index - 1] is Text) {
+      Text last = nodes[index - 1];
       last.value = '${last.value}${node.value}';
     } else {
       nodes.insertRange(index, 1, node);
@@ -240,8 +248,16 @@ class Document extends Node {
 
   int get nodeType => Node.DOCUMENT_NODE;
 
-  // TODO(jmesserly): ensure we always have an html and body.
-  Element get body => query('html').query('body');
+  Element get body {
+    for (var node in nodes) {
+      if (node.tagName != 'html') continue;
+      for (var node2 in node.nodes) {
+        if (node2.tagName != 'body') continue;
+        return node2;
+      }
+    }
+    return null;
+  }
 
   String toString() => "#document";
 
@@ -282,10 +298,10 @@ class DocumentType extends Node {
   DocumentType clone() => new DocumentType(tagName, publicId, systemId);
 }
 
-class TextNode extends Node {
+class Text extends Node {
   String value;
 
-  TextNode(this.value) : super(null);
+  Text(this.value) : super(null);
 
   int get nodeType => Node.TEXT_NODE;
 
@@ -294,7 +310,7 @@ class TextNode extends Node {
   StringBuffer _addOuterHtml(StringBuffer str) =>
       str.add(htmlEscapeMinimal(value));
 
-  TextNode clone() => new TextNode(value);
+  Text clone() => new Text(value);
 }
 
 class Element extends Node {
@@ -330,10 +346,10 @@ class Element extends Node {
       new Element(tagName, namespace)..attributes = new Map.from(attributes);
 }
 
-class CommentNode extends Node {
+class Comment extends Node {
   final String data;
 
-  CommentNode(this.data) : super(null);
+  Comment(this.data) : super(null);
 
   int get nodeType => Node.COMMENT_NODE;
 
@@ -341,21 +357,7 @@ class CommentNode extends Node {
 
   StringBuffer _addOuterHtml(StringBuffer str) => str.add("<!--$data-->");
 
-  CommentNode clone() => new CommentNode(data);
-}
-
-class TreeBuilder extends BaseTreeBuilder<
-    Document, Element, CommentNode, DocumentType, DocumentFragment> {
-
-  TreeBuilder(bool namespaceHTMLElements) : super(namespaceHTMLElements);
-
-  // Implement constructors for the generic args.
-  Document newDocument() => new Document();
-  Element newElement(String name, String ns) => new Element(name, ns);
-  CommentNode newComment(String comment) => new CommentNode(comment);
-  DocumentType newDoctype(String name, String publicId, String systemId) =>
-      new DocumentType(name, publicId, systemId);
-  DocumentFragment newFragment() => new DocumentFragment();
+  Comment clone() => new Comment(data);
 }
 
 /** A simple tree visitor for the DOM nodes. */
@@ -363,8 +365,8 @@ class TreeVisitor {
   visit(Node node) {
     switch (node.nodeType) {
       case Node.ELEMENT_NODE: return visitElement(node);
-      case Node.TEXT_NODE: return visitTextNode(node);
-      case Node.COMMENT_NODE: return visitCommentNode(node);
+      case Node.TEXT_NODE: return visitText(node);
+      case Node.COMMENT_NODE: return visitComment(node);
       case Node.DOCUMENT_FRAGMENT_NODE: return visitDocumentFragment(node);
       case Node.DOCUMENT_NODE: return visitDocument(node);
       case Node.DOCUMENT_TYPE_NODE: return visitDocumentType(node);
@@ -388,12 +390,12 @@ class TreeVisitor {
 
   visitDocumentType(DocumentType node) => visitNodeFallback(node);
 
-  visitTextNode(TextNode node) => visitNodeFallback(node);
+  visitText(Text node) => visitNodeFallback(node);
 
   // TODO(jmesserly): visit attributes.
   visitElement(Element node) => visitNodeFallback(node);
 
-  visitCommentNode(CommentNode node) => visitNodeFallback(node);
+  visitComment(Comment node) => visitNodeFallback(node);
 
   // Note: visits document by default because DocumentFragment is a Document.
   visitDocumentFragment(DocumentFragment node) => visitDocument(node);
@@ -430,7 +432,7 @@ class CodeMarkupVisitor extends TreeVisitor {
     _str.add('<code class="markup doctype">&lt;!DOCTYPE ${node.tagName}></code>');
   }
 
-  visitTextNode(TextNode node) {
+  visitText(Text node) {
     node._addOuterHtml(_str);
   }
 
@@ -453,7 +455,7 @@ class CodeMarkupVisitor extends TreeVisitor {
     _str.add('&lt;/<code class="markup element-name">${node.tagName}</code>>');
   }
 
-  visitCommentNode(CommentNode node) {
+  visitComment(Comment node) {
     var data = htmlEscapeMinimal(node.data);
     _str.add('<code class="markup comment">&lt;!--${data}--></code>');
   }

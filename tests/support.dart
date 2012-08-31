@@ -2,6 +2,7 @@
 #library('support');
 
 #import('dart:io');
+#import('../treebuilders/base.dart');
 #import('../treebuilders/simpletree.dart');
 
 typedef TreeBuilder TreeBuilderFactory(bool namespaceHTMLElements);

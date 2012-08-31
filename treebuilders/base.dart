@@ -60,16 +60,8 @@ bool _nodesEqual(Node node1, Node node2) {
       _mapEquals(node1.attributes, node2.attributes);
 }
 
-/** Base treebuilder implementation. */
-abstract class BaseTreeBuilder<
-    // TODO(jmesserly): is there a better design here?
-    // This seems like the only way to get accurate types.
-    Document extends Node,
-    Element extends Node,
-    Comment extends Node,
-    Doctype extends Node,
-    Fragment extends Node> {
-
+/** Basic treebuilder implementation. */
+class TreeBuilder {
   final String defaultNamespace;
 
   Document document;
@@ -88,27 +80,12 @@ abstract class BaseTreeBuilder<
    */
   bool insertFromTable;
 
-  BaseTreeBuilder(bool namespaceHTMLElements)
+  TreeBuilder(bool namespaceHTMLElements)
       : defaultNamespace = namespaceHTMLElements ? Namespaces.html : null,
         openElements = <Node>[],
         activeFormattingElements = new ActiveFormattingElements() {
     reset();
   }
-
-  /** The factory to use for the bottommost node of a document. */
-  abstract Document newDocument();
-
-  /** The factory to use for creating a node. */
-  abstract Element newElement(String name, String namespace);
-
-  /** The factory to use for creating comments. */
-  abstract Comment newComment(String comment);
-
-  /** The factory to use for creating doctypes. */
-  abstract Doctype newDoctype(String name, String publicId, String systemId);
-
-  /** The factory to use for creating fragments. */
-  abstract Fragment newFragment();
 
   void reset() {
     openElements.clear();
@@ -120,7 +97,7 @@ abstract class BaseTreeBuilder<
 
     insertFromTable = false;
 
-    document = newDocument();
+    document = new Document();
   }
 
   bool elementInScope(target, [String variant]) {
@@ -250,7 +227,7 @@ abstract class BaseTreeBuilder<
   }
 
   void insertDoctype(DoctypeToken token) {
-    var doctype = newDoctype(token.name, token.publicId, token.systemId);
+    var doctype = new DocumentType(token.name, token.publicId, token.systemId);
     document.$dom_appendChild(doctype);
   }
 
@@ -258,7 +235,7 @@ abstract class BaseTreeBuilder<
     if (parent == null) {
       parent = openElements.last();
     }
-    parent.$dom_appendChild(newComment(token.data));
+    parent.$dom_appendChild(new Comment(token.data));
   }
 
     /** Create an element but don't insert it anywhere */
@@ -266,7 +243,7 @@ abstract class BaseTreeBuilder<
     var name = token.name;
     var namespace = token.namespace;
     if (namespace == null) namespace = defaultNamespace;
-    var element = newElement(name, namespace);
+    var element = new Element(name, namespace);
     element.attributes = token.data;
     return element;
   }
@@ -280,7 +257,7 @@ abstract class BaseTreeBuilder<
     var name = token.name;
     var namespace = token.namespace;
     if (namespace == null) namespace = defaultNamespace;
-    Element element = newElement(name, namespace);
+    Element element = new Element(name, namespace);
     element.attributes = token.data;
     openElements.last().$dom_appendChild(element);
     openElements.add(element);
@@ -369,9 +346,9 @@ abstract class BaseTreeBuilder<
   Document getDocument() => document;
 
   /** Return the final fragment. */
-  Fragment getFragment() {
+  DocumentFragment getFragment() {
     //XXX assert innerHTML
-    var fragment = newFragment();
+    var fragment = new DocumentFragment();
     openElements[0].reparentChildren(fragment);
     return fragment;
   }
