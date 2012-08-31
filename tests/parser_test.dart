@@ -55,7 +55,7 @@ void runParserTest(String groupName, String innerHTML, String input,
         return;
       }
     }
-  } catch (var e, var stack) {
+  } catch (e, stack) {
     // TODO(jmesserly): is there a better expect to use here?
     expect(false, reason: "\n\nInput:\n$input\n\nExpected:\n$expected"
         "\n\nException:\n$e\n\nStack trace:\n$stack");

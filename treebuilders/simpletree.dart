@@ -48,7 +48,7 @@ class AttributeName implements Hashable, Comparable {
 
 // TODO(jmesserly): move code away from $dom methods
 /** Really basic implementation of a DOM-core like Node. */
-abstract class Node {
+abstract class Node extends NodeSelector {
   static const int ATTRIBUTE_NODE = 2;
   static const int CDATA_SECTION_NODE = 4;
   static const int COMMENT_NODE = 8;
@@ -189,12 +189,59 @@ abstract class Node {
     }
     nodes.clear();
   }
+
+  /**
+   * Seaches for the first descendant node matching the given selectors, using a
+   * preorder traversal. NOTE: right now, this supports only a single type
+   * selectors, e.g. `node.query('div')`.
+   */
+  Element query(String selectors) => _queryType(_typeSelector(selectors));
+
+  /**
+   * Retursn all descendant nodes matching the given selectors, using a
+   * preorder traversal. NOTE: right now, this supports only a single type
+   * selectors, e.g. `node.queryAll('div')`.
+   */
+  List<Element> queryAll(String selectors) {
+    var results = new List<Element>();
+    _queryAllType(_typeSelector(selectors), results);
+    return results;
+  }
+
+  String _typeSelector(String selectors) {
+    selectors = selectors.trim();
+    if (!selectors.splitChars().every(isLetter)) {
+      throw new NotImplementedException('only type selectors are implemented');
+    }
+    return selectors;
+  }
+
+  Element _queryType(String tag) {
+    for (var node in nodes) {
+      if (node is! Element) continue;
+      if (node.tagName == tag) return node;
+      var result = node._queryType(tag);
+      if (result != null) return result;
+    }
+    return null;
+  }
+
+  void _queryAllType(String tag, List<Element> results) {
+    for (var node in nodes) {
+      if (node is! Element) continue;
+      if (node.tagName == tag) results.add(node);
+      node._queryAllType(tag, results);
+    }
+  }
 }
 
 class Document extends Node {
   Document() : super(null);
 
   int get nodeType => Node.DOCUMENT_NODE;
+
+  // TODO(jmesserly): ensure we always have an html and body.
+  Element get body => query('html').query('body');
 
   String toString() => "#document";
 
