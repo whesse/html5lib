@@ -340,6 +340,7 @@ class Element extends Node {
     } else {
       str.add('/>');
     }
+    return str;
   }
 
   Element clone() =>

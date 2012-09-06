@@ -25,7 +25,7 @@
  * specified, that encoding will be used, regardless of any BOM or later
  * declaration (such as in a meta element).
  */
-parse(doc, [TreeBuilder treebuilder, String encoding]) {
+Document parse(doc, [TreeBuilder treebuilder, String encoding]) {
   var tokenizer = new HTMLTokenizer(doc, encoding: encoding);
   return new HTMLParser(treebuilder).parse(tokenizer);
 }
@@ -39,8 +39,8 @@ parse(doc, [TreeBuilder treebuilder, String encoding]) {
  * specified, that encoding will be used, regardless of any BOM or later
  * declaration (such as in a meta element).
  */
-parseFragment(doc, [String container = "div", TreeBuilder treebuilder,
-    String encoding]) {
+DocumentFragment parseFragment(doc, [String container = "div",
+    TreeBuilder treebuilder, String encoding]) {
   var tokenizer = new HTMLTokenizer(doc, encoding: encoding);
   var parser = new HTMLParser(treebuilder);
   return parser.parseFragment(tokenizer, container_: container);
@@ -153,7 +153,7 @@ class HTMLParser {
    * tags to text. Otherwise, construct an instance of HTMLTokenizer with the
    * appropriate options.
    */
-  parse(HTMLTokenizer tokenizer_) {
+  Document parse(HTMLTokenizer tokenizer_) {
     _parse(tokenizer_, innerHTML_: false);
     return tree.getDocument();
   }
@@ -169,7 +169,8 @@ class HTMLParser {
    * tags to text. Otherwise, construct an instance of HTMLTokenizer with the
    * appropriate options.
    */
-  parseFragment(HTMLTokenizer tokenizer_, [String container_ = "div"]) {
+  DocumentFragment parseFragment(HTMLTokenizer tokenizer_,
+      [String container_ = "div"]) {
     _parse(tokenizer_, innerHTML_: true, container_: container_);
     return tree.getFragment();
   }
