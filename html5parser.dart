@@ -346,7 +346,7 @@ class HTMLParser {
       Map datavars = const {}]) {
     // XXX The idea is to make errorcode mandatory.
     var position = tokenizer.stream.position();
-    var err = new ParseError(errorcode, position[0], position[1], datavars);
+    var err = new ParseError(errorcode, position, datavars);
     errors.add(err);
     if (strict) throw err;
   }
@@ -3249,11 +3249,14 @@ class AfterAfterFramesetPhase extends Phase {
 /** Error in parsed document. */
 class ParseError implements Exception {
   final String errorCode;
-  final int line;
-  final int column;
+  final Span span;
   final Map data;
 
-  ParseError(this.errorCode, this.line, this.column, this.data);
+  ParseError(this.errorCode, this.span, this.data);
+
+  int get line() => span.line;
+
+  int get column() => span.column;
 
   String get message => formatStr(errorMessages[errorCode], data);
 

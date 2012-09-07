@@ -8,6 +8,16 @@
 #import('../lib/utils.dart');
 #import('base.dart');
 
+class Span {
+  /** The line of this span. 1-based. */
+  final int line;
+
+  /** The column of this span. */
+  final int column;
+
+  Span(this.line, this.column);
+}
+
 // TODO(jmesserly): I added this class to replace the tuple usage in Python.
 // How does this fit in to dart:html?
 class AttributeName implements Hashable, Comparable {

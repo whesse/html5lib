@@ -2,6 +2,7 @@
 
 #import('dart:io');
 #import('package:unittest/unittest.dart');
+#import('package:unittest/vm_config.dart');
 #import('../lib/constants.dart');
 #import('../lib/utils.dart');
 #import('../treebuilders/simpletree.dart');
@@ -80,6 +81,7 @@ void runParserTest(String groupName, String innerHTML, String input,
 
 
 void main() {
+  useVmConfiguration();
   getDataFiles('tree-construction').then((files) {
     for (var path in files) {
       var tests = new TestData(path, "data");

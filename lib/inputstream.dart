@@ -6,6 +6,7 @@
 #import('constants.dart');
 #import('utils.dart');
 #import('encoding_parser.dart');
+#import('../treebuilders/simpletree.dart', prefix: 'tree'); // for Span
 
 /**
  * Provides a unicode stream of characters to the HTMLTokenizer.
@@ -191,28 +192,27 @@ class HTMLInputStream {
     return encoding;
   }
 
-  List<int> _position(int offset) {
-    var nLines = 0;
+  tree.Span _position(int offset) {
+    var nLines = 1;
+    var lastLinePos = -1;
     for (int i = 0; i < offset; i++) {
-      if (chunk.charCodeAt(i) == NEWLINE) nLines++;
+      if (chunk.charCodeAt(i) == NEWLINE) {
+        lastLinePos = i;
+        nLines++;
+      }
     }
     var positionLine = prevNumLines + nLines;
-    var lastLinePos = chunk.lastIndexOf('\n', offset);
     var positionColumn;
     if (lastLinePos == -1) {
       positionColumn = prevNumCols + offset;
     } else {
       positionColumn = offset - (lastLinePos + 1);
     }
-    return [positionLine, positionColumn];
+    return new tree.Span(positionLine, positionColumn);
   }
 
   /** Returns (line, col) of the current position in the stream. */
-  List<int> position() {
-    var pos = _position(chunkOffset);
-    pos[0] += 1;
-    return pos;
-  }
+  tree.Span position() => _position(chunkOffset);
 
   /**
    * Read one character from the stream or queue if available. Return
@@ -239,8 +239,8 @@ class HTMLInputStream {
     }
 
     var pos = _position(chunk.length);
-    prevNumLines = pos[0];
-    prevNumCols = pos[1];
+    prevNumLines = pos.line - 1; // make it 0-based
+    prevNumCols = pos.column;
 
     chunk = "";
     chunkOffset = 0;
