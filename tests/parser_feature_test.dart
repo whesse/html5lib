@@ -55,4 +55,15 @@ main() {
     // Note: error position is at the end, not the beginning
     expect(error.span.column, equals(17));
   });
+
+  test('void element innerHTML', () {
+    var doc = parse('<div></div>');
+    expect(doc.body.innerHTML, '<div></div>');
+    doc = parse('<body><script></script></body>');
+    expect(doc.body.innerHTML, '<script></script>');
+    doc = parse('<br>');
+    expect(doc.body.innerHTML, '<br>');
+    doc = parse('<br><foo><bar>');
+    expect(doc.body.innerHTML, '<br><foo><bar></bar></foo>');
+  });
 }

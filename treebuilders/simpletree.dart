@@ -343,12 +343,14 @@ class Element extends Node {
         str.add(' $key="$v"');
       });
     }
+    str.add('>');
     if (nodes.length > 0) {
-      str.add('>');
       _addInnerHtml(str);
+    }
+    // void elements must not have an end tag
+    // http://dev.w3.org/html5/markup/syntax.html#void-elements
+    if (voidElements.indexOf(tagName) < 0) {
       str.add('</$tagName>');
-    } else {
-      str.add('/>');
     }
     return str;
   }
