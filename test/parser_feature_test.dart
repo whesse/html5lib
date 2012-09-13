@@ -4,11 +4,11 @@
 #import('dart:io');
 #import('package:unittest/unittest.dart');
 #import('package:unittest/vm_config.dart');
-#import('../lib/constants.dart');
-#import('../treebuilders/base.dart');
-#import('../treebuilders/simpletree.dart');
-#import('../html5parser.dart');
-#import('../tokenizer.dart');
+#import('package:html5lib/src/constants.dart');
+#import('package:html5lib/src/treebuilder.dart');
+#import('package:html5lib/dom.dart');
+#import('package:html5lib/html5parser.dart');
+#import('package:html5lib/tokenizer.dart');
 
 main() {
   useVmConfiguration();

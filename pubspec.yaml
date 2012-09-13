@@ -1,6 +1,6 @@
 name: html5lib
 description: library for working with HTML documents
-version: 0.0.3
+version: 0.0.4
 dependencies:
   unittest: { sdk: unittest }
   args: { sdk: args }
