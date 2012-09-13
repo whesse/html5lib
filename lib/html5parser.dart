@@ -2,19 +2,21 @@
 
 #import('dart:math');
 #import('package:logging/logging.dart');
-#import('treebuilders/base.dart'); // for Marker
-#import('treebuilders/simpletree.dart');
-#import('lib/constants.dart');
-#import('lib/encoding_parser.dart');
-#import('lib/token.dart');
-#import('lib/utils.dart');
+#import('src/treebuilder.dart');
+#import('src/constants.dart');
+#import('src/encoding_parser.dart');
+#import('src/token.dart');
+#import('src/utils.dart');
 #import('tokenizer.dart');
+#import('dom.dart');
 
 // TODO(jmesserly): these APIs, as well as the HTMLParser contructor and
 // HTMLParser.parse and parseFragment were changed a bit to avoid passing a
 // first class type that is used for construction. It might be okay, but I'd
 // like to find a good dependency-injection pattern for Dart rather than
 // copy the Python API.
+// TODO(jmesserly): right now HTMLParser.parse API exposes tokenizer, which
+// means tokenizer itself is public. Ideally that would not be the case.
 // TODO(jmesserly): Also some of the HTMLParser APIs are messed up to avoid
 // editor shadowing warnings :\. Look for trailing underscores.
 /**

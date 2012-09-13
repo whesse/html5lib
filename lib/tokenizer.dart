@@ -1,10 +1,10 @@
 #library('tokenizer');
 
 #import('dart:math');
-#import('lib/constants.dart');
-#import('lib/inputstream.dart');
-#import('lib/token.dart');
-#import('lib/utils.dart');
+#import('src/constants.dart');
+#import('src/inputstream.dart');
+#import('src/token.dart');
+#import('src/utils.dart');
 #import('html5parser.dart', prefix: 'html5parser');
 
 // Group entities by their first character, for faster lookups

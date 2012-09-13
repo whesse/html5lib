@@ -2,11 +2,11 @@
  * A simple tree API that results from parsing html. Intended to be compatible
  * with dart:html, but right now it resembles the classic JS DOM.
  */
-#library('simpletree');
+#library('dom');
 
-#import('../lib/constants.dart');
-#import('../lib/utils.dart');
-#import('base.dart');
+#import('src/constants.dart');
+#import('src/treebuilder.dart');
+#import('src/utils.dart');
 
 class Span {
   /** The line of this span. 1-based. */

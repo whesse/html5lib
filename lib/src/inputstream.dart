@@ -6,7 +6,7 @@
 #import('constants.dart');
 #import('utils.dart');
 #import('encoding_parser.dart');
-#import('../treebuilders/simpletree.dart', prefix: 'tree'); // for Span
+#import('../dom.dart', prefix: 'dom'); // for Span
 
 /**
  * Provides a unicode stream of characters to the HTMLTokenizer.
@@ -192,7 +192,7 @@ class HTMLInputStream {
     return encoding;
   }
 
-  tree.Span _position(int offset) {
+  dom.Span _position(int offset) {
     var nLines = 1;
     var lastLinePos = -1;
     for (int i = 0; i < offset; i++) {
@@ -208,11 +208,11 @@ class HTMLInputStream {
     } else {
       positionColumn = offset - (lastLinePos + 1);
     }
-    return new tree.Span(positionLine, positionColumn);
+    return new dom.Span(positionLine, positionColumn);
   }
 
   /** Returns (line, col) of the current position in the stream. */
-  tree.Span position() => _position(chunkOffset);
+  dom.Span position() => _position(chunkOffset);
 
   /**
    * Read one character from the stream or queue if available. Return
