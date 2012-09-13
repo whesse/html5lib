@@ -27,6 +27,7 @@ Usage
 Parsing HTML is easy!
 
     #import('package:html5lib/html5parser.dart', prefix: 'html5parser');
+    #import('package:html5lib/dom.dart');
 
     main() {
       var document = html5parser.parse(
@@ -36,10 +37,7 @@ Parsing HTML is easy!
 
 You can pass a String, [RandomAccessFile][file], or list of bytes to `parse`.
 There's also `parseFragment` for parsing a document fragment, and `HTMLParser`
-if you want more low level control. Finally, you can get the simple DOM tree
-types like this:
-
-    #import('package:html5lib/treebuilders/simpletree.dart');
+if you want more low level control.
 
 
 Updating
@@ -68,7 +66,7 @@ These files from the [html5lib directory][files] still need to be ported:
 * `serializer/*`
 * most of `treebuilders/*`
 * `treewalkers/*`
-* most of `tests`
+* the `tests` corresponding to the above files
 
 
 Running Tests
@@ -81,7 +79,7 @@ All tests should be passing.
 
     # Run command line tests
     #export DART_SDK=path/to/dart/sdk
-    tests/run.sh
+    test/run.sh
 
 
 [dart]: http://www.dartlang.org/
@@ -90,4 +88,3 @@ All tests should be passing.
 [files]: http://html5lib.googlecode.com/hg/python/html5lib/
 [pub]: http://www.dartlang.org/docs/pub-package-manager/
 [file]: http://api.dartlang.org/docs/continuous/dart_io/RandomAccessFile.html
-

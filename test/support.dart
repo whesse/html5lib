@@ -2,8 +2,8 @@
 #library('support');
 
 #import('dart:io');
-#import('../treebuilders/base.dart');
-#import('../treebuilders/simpletree.dart');
+#import('package:html5lib/src/treebuilder.dart');
+#import('package:html5lib/dom.dart');
 
 typedef TreeBuilder TreeBuilderFactory(bool namespaceHTMLElements);
 
@@ -25,7 +25,7 @@ Future<List<String>> getDataFiles(String subdirectory, [FileMatcher matcher]) {
 
   // TODO(jmesserly): should have listSync for scripting...
   // This entire method was one line of Python code
-  var dir = new Directory.fromPath(new Path('tests/data/$subdirectory'));
+  var dir = new Directory.fromPath(new Path('test/data/$subdirectory'));
   var lister = dir.list();
   var files = <String>[];
   lister.onFile = (file) {

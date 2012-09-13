@@ -3,11 +3,11 @@
 #import('dart:io');
 #import('package:unittest/unittest.dart');
 #import('package:unittest/vm_config.dart');
-#import('../lib/constants.dart');
-#import('../lib/utils.dart');
-#import('../treebuilders/simpletree.dart');
-#import('../html5parser.dart');
-#import('../tokenizer.dart');
+#import('package:html5lib/src/constants.dart');
+#import('package:html5lib/src/utils.dart');
+#import('package:html5lib/dom.dart');
+#import('package:html5lib/html5parser.dart');
+#import('package:html5lib/tokenizer.dart');
 #import('support.dart');
 
 // Run the parse error checks

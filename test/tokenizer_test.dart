@@ -6,11 +6,11 @@
 #import('dart:mirrors');
 #import('package:unittest/unittest.dart');
 #import('package:unittest/vm_config.dart');
-#import('../lib/char_encodings.dart');
-#import('../lib/constants.dart', prefix: 'constants');
-#import('../lib/token.dart');
-#import('../lib/utils.dart');
-#import('../tokenizer.dart');
+#import('package:html5lib/src/char_encodings.dart');
+#import('package:html5lib/src/constants.dart', prefix: 'constants');
+#import('package:html5lib/src/token.dart');
+#import('package:html5lib/src/utils.dart');
+#import('package:html5lib/tokenizer.dart');
 #import('support.dart');
 
 /**
