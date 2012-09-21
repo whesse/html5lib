@@ -1,9 +1,9 @@
 /** Support code for the tests in this directory. */
-#library('support');
+library support;
 
-#import('dart:io');
-#import('package:html5lib/src/treebuilder.dart');
-#import('package:html5lib/dom.dart');
+import 'dart:io';
+import 'package:html5lib/src/treebuilder.dart';
+import 'package:html5lib/dom.dart';
 
 typedef TreeBuilder TreeBuilderFactory(bool namespaceHTMLElements);
 

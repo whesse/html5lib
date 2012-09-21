@@ -1,8 +1,8 @@
 /** Decodes bytes using the correct name. See [decodeBytes]. */
-#library('char_encodings');
+library char_encodings;
 
-#import('dart:utf');
-#import('dart:io'); // for DecoderException
+import 'dart:utf';
+import 'dart:io'; // show DecoderException;
 
 // TODO(jmesserly): this function is conspicuously absent from dart:utf.
 /**

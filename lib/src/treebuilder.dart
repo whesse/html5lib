@@ -1,11 +1,11 @@
 /** Internals to the tree builders. */
-#library('treebuilder');
+library treebuilder;
 
-#import('constants.dart');
-#import('list_proxy.dart');
-#import('token.dart');
-#import('utils.dart');
-#import('../dom.dart');
+import 'constants.dart';
+import 'list_proxy.dart';
+import 'token.dart';
+import 'utils.dart';
+import '../dom.dart';
 
 // The scope markers are inserted when entering object elements,
 // marquees, table cells, and table captions, and are used to prevent formatting
@@ -302,12 +302,12 @@ class TreeBuilder {
    * Get the foster parent element, and sibling to insert before
    * (or null) when inserting a misnested table node
    */
-  List getTableMisnestedNodePosition() {
+  List<Node> getTableMisnestedNodePosition() {
     // The foster parent element is the one which comes before the most
     // recently opened table element
     // XXX - this is really inelegant
-    var lastTable = null;
-    var fosterParent = null;
+    Node lastTable = null;
+    Node fosterParent = null;
     var insertBefore = null;
     for (Node elm in reversed(openElements)) {
       if (elm.tagName == "table") {

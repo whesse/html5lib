@@ -1,14 +1,14 @@
-#library('html5parser');
+library html5parser;
 
-#import('dart:math');
-#import('package:logging/logging.dart');
-#import('src/treebuilder.dart');
-#import('src/constants.dart');
-#import('src/encoding_parser.dart');
-#import('src/token.dart');
-#import('src/utils.dart');
-#import('tokenizer.dart');
-#import('dom.dart');
+import 'dart:math';
+import 'package:logging/logging.dart';
+import 'src/treebuilder.dart';
+import 'src/constants.dart';
+import 'src/encoding_parser.dart';
+import 'src/token.dart';
+import 'src/utils.dart';
+import 'tokenizer.dart';
+import 'dom.dart';
 
 // TODO(jmesserly): these APIs, as well as the HTMLParser contructor and
 // HTMLParser.parse and parseFragment were changed a bit to avoid passing a
@@ -3256,9 +3256,9 @@ class ParseError implements Exception {
 
   ParseError(this.errorCode, this.span, this.data);
 
-  int get line() => span.line;
+  int get line => span.line;
 
-  int get column() => span.column;
+  int get column => span.column;
 
   String get message => formatStr(errorMessages[errorCode], data);
 

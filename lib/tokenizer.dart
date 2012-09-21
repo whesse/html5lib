@@ -1,11 +1,11 @@
-#library('tokenizer');
+library tokenizer;
 
-#import('dart:math');
-#import('src/constants.dart');
-#import('src/inputstream.dart');
-#import('src/token.dart');
-#import('src/utils.dart');
-#import('html5parser.dart', prefix: 'html5parser');
+import 'dart:math';
+import 'src/constants.dart';
+import 'src/inputstream.dart';
+import 'src/token.dart';
+import 'src/utils.dart';
+import 'html5parser.dart' as html5parser;
 
 // Group entities by their first character, for faster lookups
 
@@ -89,7 +89,7 @@ class HTMLTokenizer implements Iterator<Token> {
    Token next() {
     if (hasNext()) {
       if (stream.errors.length > 0) {
-        return new ParseErrorToken(removeAt(stream.errors, 0));
+        return new ParseErrorToken(stream.errors.removeFirst());
       }
       return tokenQueue.removeFirst();
     } else {

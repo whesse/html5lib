@@ -14,8 +14,7 @@ Installation
 Add this to your `pubspec.yaml` (or create it):
 
     dependencies:
-      html5lib:
-        git: https://github.com/dart-lang/html5lib.git
+      html5lib: any
 
 Then run the [Pub Package Manager][pub] (comes with the Dart SDK):
 
@@ -26,8 +25,8 @@ Usage
 
 Parsing HTML is easy!
 
-    #import('package:html5lib/html5parser.dart', prefix: 'html5parser');
-    #import('package:html5lib/dom.dart');
+    import 'package:html5lib/html5parser.dart' as html5parser;
+    import 'package:html5lib/dom.dart');
 
     main() {
       var document = html5parser.parse(
@@ -52,6 +51,9 @@ happens, you can check the
 [commit log](https://github.com/dart-lang/html5lib/commits/master), to figure
 out what the change was.
 
+If you want to avoid breakage, you can also put the version constraint in your
+`pubspec.yaml` in place of the word `any`.
+
 
 Implementation Status
 ---------------------
@@ -64,7 +66,7 @@ These files from the [html5lib directory][files] still need to be ported:
 * `sanitizer.py`
 * `filters/*`
 * `serializer/*`
-* most of `treebuilders/*`
+* some of `treebuilders/*`
 * `treewalkers/*`
 * the `tests` corresponding to the above files
 

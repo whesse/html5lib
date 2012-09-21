@@ -1,14 +1,14 @@
 /** Additional feature tests that aren't based on test data. */
-#library('parser_test');
+library parser_test;
 
-#import('dart:io');
-#import('package:unittest/unittest.dart');
-#import('package:unittest/vm_config.dart');
-#import('package:html5lib/src/constants.dart');
-#import('package:html5lib/src/treebuilder.dart');
-#import('package:html5lib/dom.dart');
-#import('package:html5lib/html5parser.dart');
-#import('package:html5lib/tokenizer.dart');
+import 'dart:io';
+import 'package:unittest/unittest.dart';
+import 'package:unittest/vm_config.dart';
+import 'package:html5lib/src/constants.dart';
+import 'package:html5lib/src/treebuilder.dart';
+import 'package:html5lib/dom.dart';
+import 'package:html5lib/html5parser.dart';
+import 'package:html5lib/tokenizer.dart';
 
 main() {
   useVmConfiguration();
@@ -65,5 +65,12 @@ main() {
     expect(doc.body.innerHTML, '<br>');
     doc = parse('<br><foo><bar>');
     expect(doc.body.innerHTML, '<br><foo><bar></bar></foo>');
+  });
+
+  test('empty document has html, body, and head', () {
+    var doc = parse('');
+    expect(doc.outerHTML, equals('<html><head></head><body></body></html>'));
+    expect(doc.head.outerHTML, equals('<head></head>'));
+    expect(doc.body.outerHTML, equals('<body></body>'));
   });
 }

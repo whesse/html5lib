@@ -1,14 +1,14 @@
-#library('parser_test');
+library parser_test;
 
-#import('dart:io');
-#import('package:unittest/unittest.dart');
-#import('package:unittest/vm_config.dart');
-#import('package:html5lib/src/constants.dart');
-#import('package:html5lib/src/utils.dart');
-#import('package:html5lib/dom.dart');
-#import('package:html5lib/html5parser.dart');
-#import('package:html5lib/tokenizer.dart');
-#import('support.dart');
+import 'dart:io';
+import 'package:unittest/unittest.dart';
+import 'package:unittest/vm_config.dart';
+import 'package:html5lib/src/constants.dart';
+import 'package:html5lib/src/utils.dart';
+import 'package:html5lib/dom.dart';
+import 'package:html5lib/html5parser.dart';
+import 'package:html5lib/tokenizer.dart';
+import 'support.dart';
 
 // Run the parse error checks
 // TODO(jmesserly): presumably we want this on by default?
@@ -19,7 +19,7 @@ String namespaceHtml(String expected) {
   // We can't do regex replace directly =\
   // final namespaceExpected = const RegExp(@"^(\s*)<(\S+)>", multiLine: true);
   // return expected.replaceAll(namespaceExpected, @"$1<html $2>");
-  final namespaceExpected = const RegExp(@"^(\|\s*)<(\S+)>");
+  final namespaceExpected = const RegExp(r"^(\|\s*)<(\S+)>");
   var lines =  expected.split("\n");
   for (int i = 0; i < lines.length; i++) {
     var match = namespaceExpected.firstMatch(lines[i]);

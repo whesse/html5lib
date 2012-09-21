@@ -1,7 +1,7 @@
-#library('constants');
+library constants;
 
-#import('utils.dart');
-#import('token.dart');
+import 'utils.dart';
+import 'token.dart';
 
 // TODO(jmesserly): fix up the const lists. For the bigger ones, we need faster
 // lookup than linear search "indexOf". In the Python code they were frozensets.
@@ -473,8 +473,8 @@ final mathmlTextIntegrationPointElements = const [
 
 final spaceCharacters = " \n\r\t\u000C";
 
-final int NEWLINE = 10;
-final int RETURN = 13;
+const int NEWLINE = 10;
+const int RETURN = 13;
 
 bool isWhitespace(String char) {
   if (char == null) return false;

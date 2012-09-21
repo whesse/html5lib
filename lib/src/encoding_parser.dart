@@ -1,8 +1,8 @@
-#library('encoding_parser');
+library encoding_parser;
 
-#import('constants.dart');
-#import('inputstream.dart');
-#import('utils.dart');
+import 'constants.dart';
+import 'inputstream.dart';
+import 'utils.dart';
 
 // TODO(jmesserly): I converted StopIteration to NoMoreElementsException. Seems
 // strange to throw this from outside of an iterator though.

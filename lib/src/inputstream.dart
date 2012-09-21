@@ -1,12 +1,12 @@
-#library('inputstream');
+library inputstream;
 
-#import('dart:io');
-#import('dart:utf');
-#import('char_encodings.dart');
-#import('constants.dart');
-#import('utils.dart');
-#import('encoding_parser.dart');
-#import('../dom.dart', prefix: 'dom'); // for Span
+import 'dart:io';
+import 'dart:utf';
+import 'char_encodings.dart';
+import 'constants.dart';
+import 'utils.dart';
+import 'encoding_parser.dart';
+import '../dom.dart'; // show Span;
 
 /**
  * Provides a unicode stream of characters to the HTMLTokenizer.
@@ -43,7 +43,7 @@ class HTMLInputStream {
   /** Cache for charsUntil() */
   Map<Pair, RegExp> charsUntilRegEx;
 
-  List<String> errors;
+  Queue<String> errors;
 
   String chunk;
 
@@ -110,7 +110,7 @@ class HTMLInputStream {
     dataStream = null;
     chunk = "";
     chunkOffset = 0;
-    errors = [];
+    errors = new Queue<String>();
     prevNumLines = 0;
     prevNumCols = 0;
     _bufferedCharacter = null;
@@ -192,7 +192,7 @@ class HTMLInputStream {
     return encoding;
   }
 
-  dom.Span _position(int offset) {
+  Span _position(int offset) {
     var nLines = 1;
     var lastLinePos = -1;
     for (int i = 0; i < offset; i++) {
@@ -208,11 +208,11 @@ class HTMLInputStream {
     } else {
       positionColumn = offset - (lastLinePos + 1);
     }
-    return new dom.Span(positionLine, positionColumn);
+    return new Span(positionLine, positionColumn);
   }
 
   /** Returns (line, col) of the current position in the stream. */
-  dom.Span position() => _position(chunkOffset);
+  Span position() => _position(chunkOffset);
 
   /**
    * Read one character from the stream or queue if available. Return

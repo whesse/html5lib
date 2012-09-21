@@ -1,17 +1,17 @@
-#library('tokenizer_test');
+library tokenizer_test;
 
 // Note: mirrors used to match the getattr usage in the original test
-#import('dart:io');
-#import('dart:json');
-#import('dart:mirrors');
-#import('package:unittest/unittest.dart');
-#import('package:unittest/vm_config.dart');
-#import('package:html5lib/src/char_encodings.dart');
-#import('package:html5lib/src/constants.dart', prefix: 'constants');
-#import('package:html5lib/src/token.dart');
-#import('package:html5lib/src/utils.dart');
-#import('package:html5lib/tokenizer.dart');
-#import('support.dart');
+import 'dart:io';
+import 'dart:json';
+import 'dart:mirrors';
+import 'package:unittest/unittest.dart';
+import 'package:unittest/vm_config.dart';
+import 'package:html5lib/src/char_encodings.dart';
+import 'package:html5lib/src/constants.dart' as constants;
+import 'package:html5lib/src/token.dart';
+import 'package:html5lib/src/utils.dart';
+import 'package:html5lib/tokenizer.dart';
+import 'support.dart';
 
 /**
  * This is like [JSON.parse], but it fixes unicode surrogate pairs in the JSON.
@@ -60,8 +60,8 @@ class TokenizerTestParser {
       : _state = initialState,
         _lastStartTag = lastStartTag;
 
-  List parse(stream, [encoding, innerHTML = false]) {
-    var tokenizer = new HTMLTokenizer(stream, encoding);
+  List parse(stream) {
+    var tokenizer = new HTMLTokenizer(stream);
     outputTokens = [];
 
     // Note: we can't get a closure of the state method. However, we can
@@ -267,7 +267,7 @@ Map unescape(Map testInfo) {
 String camelCase(String s) {
   s = s.toLowerCase();
   var result = new StringBuffer();
-  for (var match in const RegExp(@"\W+(\w)(\w+)").allMatches(s)) {
+  for (var match in const RegExp(r"\W+(\w)(\w+)").allMatches(s)) {
     if (result.length == 0) result.add(s.substring(0, match.start()));
     result.add(match.group(1).toUpperCase());
     result.add(match.group(2));

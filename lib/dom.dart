@@ -2,11 +2,11 @@
  * A simple tree API that results from parsing html. Intended to be compatible
  * with dart:html, but right now it resembles the classic JS DOM.
  */
-#library('dom');
+library dom;
 
-#import('src/constants.dart');
-#import('src/treebuilder.dart');
-#import('src/utils.dart');
+import 'src/constants.dart';
+import 'src/treebuilder.dart';
+import 'src/utils.dart';
 
 class Span {
   /** The line of this span. 1-based. */
@@ -258,16 +258,9 @@ class Document extends Node {
 
   int get nodeType => Node.DOCUMENT_NODE;
 
-  Element get body {
-    for (var node in nodes) {
-      if (node.tagName != 'html') continue;
-      for (var node2 in node.nodes) {
-        if (node2.tagName != 'body') continue;
-        return node2;
-      }
-    }
-    return null;
-  }
+  // TODO(jmesserly): optmize this if needed
+  Element get head => query('html').query('head');
+  Element get body => query('html').query('body');
 
   String toString() => "#document";
 

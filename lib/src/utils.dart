@@ -1,9 +1,8 @@
 /** Misc things that were useful when porting the code from Python. */
-#library('utils');
+library utils;
 
-#import('dart:math');
-#import('package:unittest/unittest.dart');
-#import('constants.dart');
+import 'package:unittest/unittest.dart';
+import 'constants.dart';
 
 typedef bool Predicate();
 
@@ -55,12 +54,6 @@ List slice(List list, int start, [int end]) {
   if (end < start) end = start;
   if (end > list.length) end = list.length;
   return list.getRange(start, end - start);
-}
-
-removeAt(List list, int i) {
-  var result = list[i];
-  list.removeRange(i, 1);
-  return result;
 }
 
 bool removeFromList(List list, item) {
@@ -137,7 +130,7 @@ String formatStr(String format, Map data) {
       }
       int numberSize;
       if (digits > match) {
-        numberSize = parseInt(format.substring(match, digits));
+        numberSize = int.parse(format.substring(match, digits));
         match = digits;
       }
 
