@@ -73,4 +73,9 @@ main() {
     expect(doc.head.outerHTML, equals('<head></head>'));
     expect(doc.body.outerHTML, equals('<body></body>'));
   });
+
+  test('strange table case', () {
+    var doc = parseFragment('<table><tbody><foo>');
+    expect(doc.outerHTML, equals('<foo></foo><table><tbody></tbody></table>'));
+  });
 }

@@ -141,7 +141,7 @@ class TokenizerTestParser {
 }
 
 List concatenateCharacterTokens(List tokens) {
-  var outputTokens = <List>[];
+  var outputTokens = [];
   for (var token in tokens) {
     if (token.indexOf("ParseError") == -1 && token[0] == "Character") {
       if (outputTokens.length > 0 &&

@@ -274,7 +274,10 @@ class TreeBuilder {
       // special magic element rearranging
       var nodePos = getTableMisnestedNodePosition();
       if (nodePos[1] == null) {
-        nodePos[0].appendChild(element);
+        // TODO(jmesserly): I don't think this is reachable. If insertFromTable
+        // is true, there will be a <table> element open, and it always has a
+        // parent pointer.
+        nodePos[0].$dom_appendChild(element);
       } else {
         nodePos[0].insertBefore(element, nodePos[1]);
       }

@@ -9,7 +9,5 @@ set -e
 # TODO(sigmund): replace with a real test runner
 DIR=$( cd $( dirname "${BASH_SOURCE[0]}" ) && pwd )
 for test in $DIR/*_test.dart; do
-  # TODO(jmesserly): removed --enable-type-checks to work around VM bug in
-  # the RegExp constructor when the optimizer kicks in.
-  dart --enable-asserts $test
+  dart --enable-type-checks --enable-asserts $test
 done
