@@ -27,7 +27,7 @@ class ActiveFormattingElements extends ListProxy<Node> {
           equalCount += 1;
         }
         if (equalCount == 3) {
-          removeFromList(this, element);
+          remove(element);
           break;
         }
       }
@@ -66,7 +66,7 @@ class TreeBuilder {
 
   Document document;
 
-  final List<Node> openElements;
+  final ListProxy<Node> openElements;
 
   final ActiveFormattingElements activeFormattingElements;
 
@@ -82,7 +82,7 @@ class TreeBuilder {
 
   TreeBuilder(bool namespaceHTMLElements)
       : defaultNamespace = namespaceHTMLElements ? Namespaces.html : null,
-        openElements = <Node>[],
+        openElements = new ListProxy<Node>(),
         activeFormattingElements = new ActiveFormattingElements() {
     reset();
   }
@@ -223,19 +223,19 @@ class TreeBuilder {
   void insertRoot(Token token) {
     var element = createElement(token);
     openElements.add(element);
-    document.$dom_appendChild(element);
+    document.nodes.add(element);
   }
 
   void insertDoctype(DoctypeToken token) {
     var doctype = new DocumentType(token.name, token.publicId, token.systemId);
-    document.$dom_appendChild(doctype);
+    document.nodes.add(doctype);
   }
 
   void insertComment(Token token, [Node parent]) {
     if (parent == null) {
       parent = openElements.last();
     }
-    parent.$dom_appendChild(new Comment(token.data));
+    parent.nodes.add(new Comment(token.data));
   }
 
     /** Create an element but don't insert it anywhere */
@@ -259,7 +259,7 @@ class TreeBuilder {
     if (namespace == null) namespace = defaultNamespace;
     Element element = new Element(name, namespace);
     element.attributes = token.data;
-    openElements.last().$dom_appendChild(element);
+    openElements.last().nodes.add(element);
     openElements.add(element);
     return element;
   }
@@ -277,7 +277,7 @@ class TreeBuilder {
         // TODO(jmesserly): I don't think this is reachable. If insertFromTable
         // is true, there will be a <table> element open, and it always has a
         // parent pointer.
-        nodePos[0].$dom_appendChild(element);
+        nodePos[0].nodes.add(element);
       } else {
         nodePos[0].insertBefore(element, nodePos[1]);
       }
@@ -292,12 +292,36 @@ class TreeBuilder {
 
     if (!insertFromTable || insertFromTable &&
         tableInsertModeElements.indexOf(openElements.last().tagName) == -1) {
-      parent.insertText(data);
+      _insertText(parent, data);
     } else {
       // We should be in the InTable mode. This means we want to do
       // special magic element rearranging
       var nodePos = getTableMisnestedNodePosition();
-      nodePos[0].insertText(data, nodePos[1]);
+      _insertText(nodePos[0], data, nodePos[1]);
+    }
+  }
+
+  /**
+   * Insert [data] as text in the current node, positioned before the
+   * start of node [refNode] or to the end of the node's text.
+   */
+  static void _insertText(Node parent, String data, [Element refNode]) {
+    var nodes = parent.nodes;
+    if (refNode == null) {
+      if (nodes.length > 0 && nodes.last() is Text) {
+        Text last = nodes.last();
+        last.value = '${last.value}$data';
+      } else {
+        nodes.add(new Text(data));
+      }
+    } else {
+      int index = nodes.indexOf(refNode);
+      if (index > 0 && nodes[index - 1] is Text) {
+        Text last = nodes[index - 1];
+        last.value = '${last.value}$data';
+      } else {
+        nodes.insertAt(index, new Text(data));
+      }
     }
   }
 

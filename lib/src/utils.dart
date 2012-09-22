@@ -56,13 +56,6 @@ List slice(List list, int start, [int end]) {
   return list.getRange(start, end - start);
 }
 
-bool removeFromList(List list, item) {
-  int i = list.indexOf(item);
-  if (i == -1) return false;
-  list.removeRange(i, 1);
-  return true;
-}
-
 /** Makes a dictionary, where the first key wins. */
 Map makeDict(List<List> items) {
   var result = new Map();

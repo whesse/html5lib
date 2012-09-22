@@ -1023,7 +1023,7 @@ class AfterHeadPhase extends Phase {
     parser._inHeadPhase.processStartTag(token);
     for (Node node in reversed(tree.openElements)) {
       if (node.tagName == "head") {
-        removeFromList(tree.openElements, node);
+        tree.openElements.remove(node);
         break;
       }
     }
@@ -1202,7 +1202,7 @@ class InBodyPhase extends Phase {
 
     assert(matchingElements.length <= 3);
     if (matchingElements.length == 3) {
-      removeFromList(tree.activeFormattingElements, matchingElements.last());
+      tree.activeFormattingElements.remove(matchingElements.last());
     }
     tree.activeFormattingElements.add(element);
   }
@@ -1284,7 +1284,7 @@ class InBodyPhase extends Phase {
       assert(parser.innerHTMLMode);
     } else if (parser.framesetOK) {
       if (tree.openElements[1].parent != null) {
-        tree.openElements[1].parent.$dom_removeChild(tree.openElements[1]);
+        tree.openElements[1].parent.nodes.remove(tree.openElements[1]);
       }
       while (tree.openElements.last().tagName != "html") {
         tree.openElements.removeLast();
@@ -1372,8 +1372,8 @@ class InBodyPhase extends Phase {
       parser.parseError("unexpected-start-tag-implies-end-tag",
           {"startName": "a", "endName": "a"});
       endTagFormatting(new EndTagToken("a", data: {}));
-      removeFromList(tree.openElements, afeAElement);
-      removeFromList(tree.activeFormattingElements, afeAElement);
+      tree.openElements.remove(afeAElement);
+      tree.activeFormattingElements.remove(afeAElement);
     }
     tree.reconstructActiveFormattingElements();
     addFormattingElement(token);
@@ -1674,7 +1674,7 @@ class InBodyPhase extends Phase {
       if (tree.openElements.last() != node) {
         parser.parseError("end-tag-too-early-ignored", {"name": "form"});
       }
-      removeFromList(tree.openElements, node);
+      tree.openElements.remove(node);
     }
   }
 
@@ -1740,7 +1740,7 @@ class InBodyPhase extends Phase {
       // Step 1 paragraph 2
       } else if (tree.openElements.indexOf(formattingElement) == -1) {
         parser.parseError("adoption-agency-1.2", {"name": token.name});
-        removeFromList(tree.activeFormattingElements, formattingElement);
+        tree.activeFormattingElements.remove(formattingElement);
         return;
       }
 
@@ -1765,7 +1765,7 @@ class InBodyPhase extends Phase {
         while (element != formattingElement) {
           element = tree.openElements.removeLast();
         }
-        removeFromList(tree.activeFormattingElements, element);
+        tree.activeFormattingElements.remove(element);
         return;
       }
 
@@ -1791,7 +1791,7 @@ class InBodyPhase extends Phase {
         index -= 1;
         node = tree.openElements[index];
         if (tree.activeFormattingElements.indexOf(node) == -1) {
-          removeFromList(tree.openElements, node);
+          tree.openElements.remove(node);
           continue;
         }
         // Step 6.3
@@ -1814,9 +1814,9 @@ class InBodyPhase extends Phase {
         // Step 6.6
         // Remove lastNode from its parents, if any
         if (lastNode.parent != null) {
-          lastNode.parent.$dom_removeChild(lastNode);
+          lastNode.parent.nodes.remove(lastNode);
         }
-        node.$dom_appendChild(lastNode);
+        node.nodes.add(lastNode);
         // Step 7.7
         lastNode = node;
         // End of inner loop
@@ -1827,7 +1827,7 @@ class InBodyPhase extends Phase {
       // table, tbody, tfoot, thead, or tr we need to foster parent the
       // lastNode
       if (lastNode.parent != null) {
-        lastNode.parent.$dom_removeChild(lastNode);
+        lastNode.parent.nodes.remove(lastNode);
       }
 
       if (const ["table", "tbody", "tfoot", "thead", "tr"].indexOf(
@@ -1835,7 +1835,7 @@ class InBodyPhase extends Phase {
         var nodePos = tree.getTableMisnestedNodePosition();
         nodePos[0].insertBefore(lastNode, nodePos[1]);
       } else {
-        commonAncestor.$dom_appendChild(lastNode);
+        commonAncestor.nodes.add(lastNode);
       }
 
       // Step 8
@@ -1845,15 +1845,15 @@ class InBodyPhase extends Phase {
       furthestBlock.reparentChildren(clone);
 
       // Step 10
-      furthestBlock.$dom_appendChild(clone);
+      furthestBlock.nodes.add(clone);
 
       // Step 11
-      removeFromList(tree.activeFormattingElements, formattingElement);
+      tree.activeFormattingElements.remove(formattingElement);
       tree.activeFormattingElements.insertRange(
           min(bookmark, tree.activeFormattingElements.length), 1, clone);
 
       // Step 12
-      removeFromList(tree.openElements, formattingElement);
+      tree.openElements.remove(formattingElement);
       tree.openElements.insertRange(
           tree.openElements.indexOf(furthestBlock) + 1, 1, clone);
     }

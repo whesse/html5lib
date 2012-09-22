@@ -5,6 +5,7 @@
 library dom;
 
 import 'src/constants.dart';
+import 'src/list_proxy.dart';
 import 'src/treebuilder.dart';
 import 'src/utils.dart';
 
@@ -85,18 +86,18 @@ abstract class Node implements Hashable {
   /** A map holding name, value pairs for attributes of the node. */
   Map attributes;
 
-  // TODO(jmesserly): this collection needs to handle addition and removal of
-  // items and automatically fix the parent pointer, like dart:html does.
   /**
    * A list of child nodes of the current node. This must
    * include all elements but not necessarily other node types.
    */
-  final List<Node> nodes;
+  final NodeList nodes;
 
   Node(this.tagName)
       : attributes = {},
-        nodes = <Node>[],
-        _hashCode = ++_lastHashCode;
+        nodes = new NodeList._(),
+        _hashCode = ++_lastHashCode {
+    nodes._parent = this;
+  }
 
   /**
    * Return a shallow copy of the current node i.e. a node with the same
@@ -135,30 +136,12 @@ abstract class Node implements Hashable {
 
   int hashCode() => _hashCode;
 
-  /**
-   * Insert [node] as a child of the current node
-   */
-  void $dom_appendChild(Node node) {
-    if (node is Text && nodes.length > 0 &&
-        nodes.last() is Text) {
-      Text last = nodes.last();
-      last.value = '${last.value}${node.value}';
-    } else {
-      nodes.add(node);
+  Node remove() {
+    // TODO(jmesserly): is parent == null an error?
+    if (parent != null) {
+      parent.nodes.remove(this);
     }
-    node.parent = this;
-  }
-
-  /**
-   * Insert [data] as text in the current node, positioned before the
-   * start of node [refNode] or to the end of the node's text.
-   */
-  void insertText(String data, [Node refNode]) {
-    if (refNode == null) {
-      $dom_appendChild(new Text(data));
-    } else {
-      insertBefore(new Text(data), refNode);
-    }
+    return this;
   }
 
   /**
@@ -167,23 +150,7 @@ abstract class Node implements Hashable {
    * is not a child of the current node.
    */
   void insertBefore(Node node, Node refNode) {
-    int index = nodes.indexOf(refNode);
-    if (node is Text && index > 0 &&
-        nodes[index - 1] is Text) {
-      Text last = nodes[index - 1];
-      last.value = '${last.value}${node.value}';
-    } else {
-      nodes.insertRange(index, 1, node);
-    }
-    node.parent = this;
-  }
-
-  /**
-   * Remove [node] from the children of the current node
-   */
-  void $dom_removeChild(Node node) {
-    removeFromList(nodes, node);
-    node.parent = null;
+    nodes.insertAt(nodes.indexOf(refNode), node);
   }
 
   // TODO(jmesserly): should this be a property?
@@ -201,10 +168,7 @@ abstract class Node implements Hashable {
    * text in the correct way.
    */
   void reparentChildren(Node newParent) {
-    //XXX - should this method be made more general?
-    for (var child in nodes) {
-      newParent.$dom_appendChild(child);
-    }
+    newParent.nodes.addAll(nodes);
     nodes.clear();
   }
 
@@ -365,6 +329,92 @@ class Comment extends Node {
 
   Comment clone() => new Comment(data);
 }
+
+// TODO(jmesserly): is there any way to share code with the _NodeListImpl?
+class NodeList extends ListProxy<Node> {
+  // Note: this is conceptually final, but because of circular reference
+  // between Node and NodeList we initialize it after construction.
+  Node _parent;
+
+  NodeList._();
+
+  Node get first => this[0];
+
+  Node _setParent(Node node) {
+    // Note: we need to remove the node from its previous parent node, if any,
+    // before updating its parent pointer to point at our parent.
+    node.remove();
+    node.parent = _parent;
+    return node;
+  }
+
+  void add(Node value) {
+    super.add(_setParent(value));
+  }
+
+  void addLast(Node value) => add(value);
+
+  void addAll(Collection<Node> collection) {
+    // Note: we need to be careful if collection is another NodeList.
+    // In particular:
+    //   1. we need to copy the items before updating their parent pointers,
+    //   2. we should update parent pointers in reverse order. That way they
+    //      are removed from the original NodeList (if any) from the end, which
+    //      is faster.
+    if (collection is NodeList) {
+      collection = new List<Node>.from(collection);
+    }
+    for (var node in reversed(collection)) _setParent(node);
+    super.addAll(collection);
+  }
+
+  Node removeLast() => super.removeLast()..parent = null;
+
+  Node removeAt(int i) => super.removeAt(i)..parent = null;
+
+  void clear() {
+    for (var node in this) node.parent = null;
+    super.clear();
+  }
+
+  void operator []=(int index, Node value) {
+    this[index].parent = null;
+    super[index] = _setParent(value);
+  }
+
+  // TODO(jmesserly): These aren't implemented in DOM _NodeListImpl, see
+  // http://code.google.com/p/dart/issues/detail?id=5371
+  void setRange(int start, int rangeLength, List<Node> from,
+                [int startFrom = 0]) {
+    if (from is NodeList) {
+      // Note: this is presumed to make a copy
+      from = from.getRange(startFrom, rangeLength);
+    }
+    // Note: see comment in [addAll]. We need to be careful about the order of
+    // operations if [from] is also a NodeList.
+    for (int i = rangeLength - 1; i >= 0; i--) {
+      this[start + i].parent = null;
+      super[start + i] = _setParent(from[startFrom + i]);
+    }
+  }
+
+  void removeRange(int start, int rangeLength) {
+    for (int i = start; i < rangeLength; i++) this[i].parent = null;
+    super.removeRange(start, rangeLength);
+  }
+
+  void insertRange(int start, int rangeLength, [Node initialValue]) {
+    if (initialValue == null) {
+      throw new IllegalArgumentException('cannot add null node.');
+    }
+    if (rangeLength > 1) {
+      throw new UnsupportedOperationException('cannot add the same node '
+          'multiple times.');
+    }
+    super.insertRange(start, 1, _setParent(initialValue));
+  }
+}
+
 
 /** A simple tree visitor for the DOM nodes. */
 class TreeVisitor {
