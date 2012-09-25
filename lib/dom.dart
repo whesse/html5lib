@@ -192,10 +192,52 @@ abstract class Node implements Hashable {
 
   String _typeSelector(String selectors) {
     selectors = selectors.trim();
-    if (!selectors.splitChars().every(isLetter)) {
+    if (!_isTypeSelector(selectors)) {
       throw new NotImplementedException('only type selectors are implemented');
     }
     return selectors;
+  }
+
+  /**
+   * Checks if this is a type selector.
+   * See <ttp://www.w3.org/TR/CSS2/grammar.html>.
+   * Note: this doesn't support '*', the universal selector, non-ascii chars or
+   * escape chars.
+   */
+  bool _isTypeSelector(String selector) {
+    // Parser:
+
+    // element_name
+    //   : IDENT | '*'
+    //   ;
+
+    // Lexer:
+
+    // nmstart   [_a-z]|{nonascii}|{escape}
+    // nmchar    [_a-z0-9-]|{nonascii}|{escape}
+    // ident   -?{nmstart}{nmchar}*
+    // nonascii  [\240-\377]
+    // unicode   \\{h}{1,6}(\r\n|[ \t\r\n\f])?
+    // escape    {unicode}|\\[^\r\n\f0-9a-f]
+
+    // As mentioned above, no nonascii or escape support yet.
+    int len = selector.length;
+    if (len == 0) return false;
+
+    int i = 0;
+    const int DASH = 45;
+    if (selector.charCodeAt(i) == DASH) i++;
+
+    if (i >= len || !isLetter(selector[i])) return false;
+    i++;
+
+    for (; i < len; i++) {
+      if (!isLetterOrDigit(selector[i]) && selector.charCodeAt(i) != DASH) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   Element _queryType(String tag) {
