@@ -21,7 +21,7 @@ class Span {
 
 // TODO(jmesserly): I added this class to replace the tuple usage in Python.
 // How does this fit in to dart:html?
-class AttributeName implements Hashable, Comparable {
+class AttributeName implements Comparable {
   /** The namespace prefix, e.g. `xlink`. */
   final String prefix;
 
@@ -59,7 +59,7 @@ class AttributeName implements Hashable, Comparable {
 
 // TODO(jmesserly): move code away from $dom methods
 /** Really basic implementation of a DOM-core like Node. */
-abstract class Node implements Hashable {
+abstract class Node {
   static const int ATTRIBUTE_NODE = 2;
   static const int CDATA_SECTION_NODE = 4;
   static const int COMMENT_NODE = 8;
@@ -72,9 +72,6 @@ abstract class Node implements Hashable {
   static const int NOTATION_NODE = 12;
   static const int PROCESSING_INSTRUCTION_NODE = 7;
   static const int TEXT_NODE = 3;
-
-  static int _lastHashCode = 0;
-  final int _hashCode;
 
   // TODO(jmesserly): this should be on Element
   /** The tag name associated with the node. */
@@ -94,8 +91,7 @@ abstract class Node implements Hashable {
 
   Node(this.tagName)
       : attributes = {},
-        nodes = new NodeList._(),
-        _hashCode = ++_lastHashCode {
+        nodes = new NodeList._() {
     nodes._parent = this;
   }
 
@@ -133,8 +129,6 @@ abstract class Node implements Hashable {
   }
 
   String toString() => tagName;
-
-  int hashCode() => _hashCode;
 
   Node remove() {
     // TODO(jmesserly): is parent == null an error?

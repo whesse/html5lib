@@ -6,7 +6,7 @@ import 'constants.dart';
 
 typedef bool Predicate();
 
-class Pair<F extends Hashable, S extends Hashable> implements Hashable {
+class Pair<F, S> {
   final F first;
   final S second;
 
