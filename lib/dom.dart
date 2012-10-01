@@ -73,6 +73,12 @@ abstract class Node {
   static const int PROCESSING_INSTRUCTION_NODE = 7;
   static const int TEXT_NODE = 3;
 
+  // TODO(sigmund): remove when dartbug.com/5546 is fixed.
+  static int _lastHashCode = 0;
+
+  // TODO(sigmund): remove when dartbug.com/5546 is fixed.
+  final int _hashCode;
+
   // TODO(jmesserly): this should be on Element
   /** The tag name associated with the node. */
   final String tagName;
@@ -91,7 +97,8 @@ abstract class Node {
 
   Node(this.tagName)
       : attributes = {},
-        nodes = new NodeList._() {
+        nodes = new NodeList._(),
+        _hashCode = ++_lastHashCode {
     nodes._parent = this;
   }
 
@@ -129,6 +136,9 @@ abstract class Node {
   }
 
   String toString() => tagName;
+
+  // TODO(sigmund): remove when dartbug.com/5546 is fixed.
+  int hashCode() => _hashCode;
 
   Node remove() {
     // TODO(jmesserly): is parent == null an error?
