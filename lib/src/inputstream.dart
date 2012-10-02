@@ -1,6 +1,5 @@
 library inputstream;
 
-import 'dart:io';
 import 'dart:utf';
 import 'char_encodings.dart';
 import 'constants.dart';
@@ -64,8 +63,8 @@ class HTMLInputStream {
    * HTMLInputStream(source, [encoding]) -> Normalized stream from source
    * for use by html5lib.
    *
-   * [source] can be either a [RandomAccessFile], a [String], or a [List<int>]
-   * containing the raw bytes.
+   * [source] can be either a [String] or a [List<int>] containing the raw
+   * bytes.
    *
    * The optional encoding parameter must be a string that indicates
    * the encoding.  If specified, that encoding will be used,
@@ -85,10 +84,6 @@ class HTMLInputStream {
       rawBytes = encodeUtf8(source);
       charEncodingName = 'utf-8';
       charEncodingCertain = true;
-    } else if (source is RandomAccessFile) {
-      // TODO(jmesserly): it's unfortunate we need to read all bytes in advance,
-      // but it's necessary because of how the UTF decoders work.
-      rawBytes = readAllBytesFromFile(source);
     } else if (source is List<int>) {
       rawBytes = source;
     } else {
@@ -399,24 +394,6 @@ bool invalidUnicode(int c) {
       return true;
   }
   return false;
-}
-
-List<int> readAllBytesFromFile(RandomAccessFile file) {
-  int length = file.lengthSync();
-  var bytes = new List<int>(length);
-
-  int bytesRead = 0;
-  while (bytesRead < length) {
-    int read = file.readListSync(bytes, bytesRead, length - bytesRead);
-    if (read <= 0) {
-      // This could happen if, for example, the file was resized while
-      // we're reading. Just shrink the bytes array and move on.
-      bytes = bytes.getRange(0, bytesRead);
-      break;
-    }
-    bytesRead += read;
-  }
-  return bytes;
 }
 
 /**
