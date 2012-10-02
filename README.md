@@ -34,7 +34,7 @@ Parsing HTML is easy!
       print(document.outerHTML);
     }
 
-You can pass a String, [RandomAccessFile][file], or list of bytes to `parse`.
+You can pass a String or list of bytes to `parse`.
 There's also `parseFragment` for parsing a document fragment, and `HTMLParser`
 if you want more low level control.
 
@@ -89,4 +89,3 @@ All tests should be passing.
 [d_html]: http://api.dartlang.org/docs/continuous/dart_html.html
 [files]: http://html5lib.googlecode.com/hg/python/html5lib/
 [pub]: http://www.dartlang.org/docs/pub-package-manager/
-[file]: http://api.dartlang.org/docs/continuous/dart_io/RandomAccessFile.html
