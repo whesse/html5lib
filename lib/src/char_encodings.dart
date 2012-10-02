@@ -2,7 +2,7 @@
 library char_encodings;
 
 import 'dart:utf';
-import 'dart:io'; // show DecoderException;
+import 'client_server_io.dart';
 
 // TODO(jmesserly): this function is conspicuously absent from dart:utf.
 /**
