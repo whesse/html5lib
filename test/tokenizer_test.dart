@@ -9,8 +9,8 @@ import 'package:unittest/vm_config.dart';
 import 'package:html5lib/src/char_encodings.dart';
 import 'package:html5lib/src/constants.dart' as constants;
 import 'package:html5lib/src/token.dart';
+import 'package:html5lib/src/tokenizer.dart';
 import 'package:html5lib/src/utils.dart';
-import 'package:html5lib/tokenizer.dart';
 import 'support.dart';
 
 /**

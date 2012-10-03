@@ -3,11 +3,11 @@ library parser_test;
 import 'dart:io';
 import 'package:unittest/unittest.dart';
 import 'package:unittest/vm_config.dart';
-import 'package:html5lib/src/constants.dart';
-import 'package:html5lib/src/utils.dart';
 import 'package:html5lib/dom.dart';
-import 'package:html5lib/html5parser.dart';
-import 'package:html5lib/tokenizer.dart';
+import 'package:html5lib/parser.dart';
+import 'package:html5lib/src/constants.dart';
+import 'package:html5lib/src/tokenizer.dart';
+import 'package:html5lib/src/utils.dart';
 import 'support.dart';
 
 // Run the parse error checks
@@ -37,29 +37,13 @@ void runParserTest(String groupName, String innerHTML, String input,
   // XXX - move this out into the setup function
   // concatenate all consecutive character tokens into a single token
   var builder = treeCtor(namespaceHTMLElements);
-  HTMLParser p;
-  try {
-    p = new HTMLParser(builder);
-  } on DataLossWarning catch (w) {
-    return;
-  }
+  var parser = new HtmlParser(input, tree: builder);
 
-  var document;
-  try {
-    var tokenizer = new HTMLTokenizer(input);
-    if (innerHTML != null) {
-      document = p.parseFragment(tokenizer, container_: innerHTML);
-    } else {
-      try {
-        document = p.parse(tokenizer);
-      } on DataLossWarning catch (w) {
-        return;
-      }
-    }
-  } catch (e, stack) {
-    // TODO(jmesserly): is there a better expect to use here?
-    expect(false, reason: "\n\nInput:\n$input\n\nExpected:\n$expected"
-        "\n\nException:\n$e\n\nStack trace:\n$stack");
+  Node document;
+  if (innerHTML != null) {
+    document = parser.parseFragment(innerHTML);
+  } else {
+    document = parser.parse();
   }
 
   var output = testSerializer(document);
@@ -72,10 +56,11 @@ void runParserTest(String groupName, String innerHTML, String input,
       "\n\nInput:\n$input\n\nExpected:\n$expected\n\nReceived:\n$output");
 
   if (checkParseErrors) {
-    expect(p.errors.length, equals(errors.length), reason:
+    expect(parser.errors.length, equals(errors.length), reason:
         "\n\nInput:\n$input\n\nExpected errors (${errors.length}):\n"
-        "${Strings.join(errors, '\n')}\n\nActual errors (${p.errors.length}):\n"
-        "${Strings.join(p.errors.map((e) => '$e'), '\n')}");
+        "${Strings.join(errors, '\n')}\n\n"
+        "Actual errors (${parser.errors.length}):\n"
+        "${Strings.join(parser.errors.map((e) => '$e'), '\n')}");
   }
 }
 

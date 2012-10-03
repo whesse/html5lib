@@ -4,7 +4,7 @@ library dom_test;
 import 'dart:io';
 import 'package:unittest/unittest.dart';
 import 'package:unittest/vm_config.dart';
-import 'package:html5lib/html5parser.dart';
+import 'package:html5lib/parser.dart';
 import 'package:html5lib/dom.dart';
 
 main() {

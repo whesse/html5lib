@@ -1,11 +1,12 @@
 /** Internals to the tree builders. */
 library treebuilder;
 
+import 'package:html5lib/dom.dart';
+import 'package:html5lib/dom_parsing.dart';
 import 'constants.dart';
 import 'list_proxy.dart';
 import 'token.dart';
 import 'utils.dart';
-import '../dom.dart';
 
 // The scope markers are inserted when entering object elements,
 // marquees, table cells, and table captions, and are used to prevent formatting
@@ -179,11 +180,16 @@ class TreeBuilder {
 
       // Step 8
       entry = activeFormattingElements[i];
-      var clone = entry.clone(); // Mainly to get a new copy of the attributes
+
+      // TODO(jmesserly): optimize this. No need to create a token.
+      var cloneToken = new StartTagToken(
+          entry.tagName,
+          namespace: entry.namespace,
+          data: new Map.from(entry.attributes))
+          ..span = entry.span;
 
       // Step 9
-      var element = insertElement(new StartTagToken(clone.tagName,
-          namespace: clone.namespace, data: clone.attributes));
+      var element = insertElement(cloneToken);
 
       // Step 10
       activeFormattingElements[i] = element;
@@ -227,7 +233,8 @@ class TreeBuilder {
   }
 
   void insertDoctype(DoctypeToken token) {
-    var doctype = new DocumentType(token.name, token.publicId, token.systemId);
+    var doctype = new DocumentType(token.name, token.publicId, token.systemId)
+        ..span = token.span;
     document.nodes.add(doctype);
   }
 
@@ -235,7 +242,7 @@ class TreeBuilder {
     if (parent == null) {
       parent = openElements.last();
     }
-    parent.nodes.add(new Comment(token.data));
+    parent.nodes.add(new Comment(token.data)..span = token.span);
   }
 
     /** Create an element but don't insert it anywhere */
@@ -243,8 +250,9 @@ class TreeBuilder {
     var name = token.name;
     var namespace = token.namespace;
     if (namespace == null) namespace = defaultNamespace;
-    var element = new Element(name, namespace);
-    element.attributes = token.data;
+    var element = new Element(name, namespace)
+        ..attributes = token.data
+        ..span = token.span;
     return element;
   }
 
@@ -257,8 +265,9 @@ class TreeBuilder {
     var name = token.name;
     var namespace = token.namespace;
     if (namespace == null) namespace = defaultNamespace;
-    Element element = new Element(name, namespace);
-    element.attributes = token.data;
+    var element = new Element(name, namespace)
+        ..attributes = token.data
+        ..span = token.span;
     openElements.last().nodes.add(element);
     openElements.add(element);
     return element;
@@ -287,17 +296,17 @@ class TreeBuilder {
   }
 
   /** Insert text data. */
-  void insertText(String data, [Node parent]) {
-    if (parent == null) parent = openElements.last();
+  void insertText(String data, SourceSpan span) {
+    var parent = openElements.last();
 
     if (!insertFromTable || insertFromTable &&
         tableInsertModeElements.indexOf(openElements.last().tagName) == -1) {
-      _insertText(parent, data);
+      _insertText(parent, data, span);
     } else {
       // We should be in the InTable mode. This means we want to do
       // special magic element rearranging
       var nodePos = getTableMisnestedNodePosition();
-      _insertText(nodePos[0], data, nodePos[1]);
+      _insertText(nodePos[0], data, span, nodePos[1]);
     }
   }
 
@@ -305,14 +314,15 @@ class TreeBuilder {
    * Insert [data] as text in the current node, positioned before the
    * start of node [refNode] or to the end of the node's text.
    */
-  static void _insertText(Node parent, String data, [Element refNode]) {
+  static void _insertText(Node parent, String data, SourceSpan span,
+      [Element refNode]) {
     var nodes = parent.nodes;
     if (refNode == null) {
       if (nodes.length > 0 && nodes.last() is Text) {
         Text last = nodes.last();
         last.value = '${last.value}$data';
       } else {
-        nodes.add(new Text(data));
+        nodes.add(new Text(data)..span = span);
       }
     } else {
       int index = nodes.indexOf(refNode);
@@ -320,7 +330,7 @@ class TreeBuilder {
         Text last = nodes[index - 1];
         last.value = '${last.value}$data';
       } else {
-        nodes.insertAt(index, new Text(data));
+        nodes.insertAt(index, new Text(data)..span = span);
       }
     }
   }
@@ -378,13 +388,5 @@ class TreeBuilder {
     var fragment = new DocumentFragment();
     openElements[0].reparentChildren(fragment);
     return fragment;
-  }
-
-  /**
-   * Serialize the subtree of node in the format required by unit tests
-   * node - the node from which to start serializing
-   */
-  String testSerializer(node) {
-    throw const NotImplementedException();
   }
 }

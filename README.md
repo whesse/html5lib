@@ -25,17 +25,17 @@ Usage
 
 Parsing HTML is easy!
 
-    import 'package:html5lib/html5parser.dart' as html5parser;
+    import 'package:html5lib/parser.dart'; // show parse
     import 'package:html5lib/dom.dart';
 
     main() {
-      var document = html5parser.parse(
+      var document = parse(
         '<body>Hello world! <a href="www.html5rocks.com">HTML5 rocks!');
       print(document.outerHTML);
     }
 
 You can pass a String or list of bytes to `parse`.
-There's also `parseFragment` for parsing a document fragment, and `HTMLParser`
+There's also `parseFragment` for parsing a document fragment, and `HtmlParser`
 if you want more low level control.
 
 

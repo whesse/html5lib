@@ -1,12 +1,16 @@
 /** This library contains token types used by the html5 tokenizer. */
 library token;
 
+import 'package:html5lib/dom_parsing.dart' as dom_parsing; // show SourceSpan
+
 /** An html5 token. */
 class Token {
+  dom_parsing.SourceSpan span;
+
   abstract int get kind;
 
   // TODO(jmesserly): it'd be nice to remove this and always use the ".data"
-  // on the particular token type.
+  // on the particular token type, since they store different kinds of data.
   abstract get data;
   abstract set data(value);
 }
@@ -38,7 +42,6 @@ class StartTagToken extends TagToken {
 }
 
 class EndTagToken extends TagToken {
-
   EndTagToken([String name, data, bool selfClosing = false])
       : super(name, data, selfClosing);
 

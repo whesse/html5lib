@@ -1,11 +1,28 @@
 library inputstream;
 
 import 'dart:utf';
+import 'package:html5lib/dom_parsing.dart'; // show SourceFileInfo;
 import 'char_encodings.dart';
 import 'constants.dart';
 import 'utils.dart';
 import 'encoding_parser.dart';
-import '../dom.dart'; // show Span;
+
+/** Hooks to call into dart:io without directly referencing it. */
+class IOSupport {
+  List<int> bytesFromFile(source) => null;
+}
+
+// TODO(jmesserly): use lazy init here when supported.
+IOSupport _ioSupport;
+
+IOSupport get ioSupport {
+  if (_ioSupport == null) _ioSupport = new IOSupport();
+  return _ioSupport;
+}
+
+set ioSupport(IOSupport value) {
+  _ioSupport = value;
+}
 
 /**
  * Provides a unicode stream of characters to the HTMLTokenizer.
@@ -13,12 +30,14 @@ import '../dom.dart'; // show Span;
  * This class takes care of character encoding and removing or replacing
  * incorrect byte-sequences and also provides column and line tracking.
  */
+// TODO(jmesserly): fix the design of this class. The original Python html5lib
+// was optimized around using RegExp to scan for character patterns. This is
+// not a great design for us as it forces a lot of String <-> List of codepoint
+// conversions. It also adds a lot of complexity to this class because it forces
+// it to deal with chunks instead of one character at a time.
 class HTMLInputStream {
 
   const int _defaultChunkSize = 10240;
-
-  /** List of where new lines occur. */
-  List newLines;
 
   /**
    * Number of bytes to use when looking for a meta element with
@@ -35,6 +54,8 @@ class HTMLInputStream {
   /** True if we are certain about [charEncodingName], false for tenative. */
   bool charEncodingCertain = true;
 
+  final bool generateSpans;
+
   List<int> rawBytes;
 
   Iterator<int> dataStream;
@@ -48,14 +69,16 @@ class HTMLInputStream {
 
   int chunkOffset;
 
-  /** number of (complete) lines in previous chunks */
-  int prevNumLines;
-
-  /** number of columns in the last line of the previous chunk */
-  int prevNumCols;
-
   /** Deals with CR LF and surrogates split over chunk boundaries */
   String _bufferedCharacter;
+
+  SourceFileInfo fileInfo;
+
+  List<int> _lineStarts;
+
+  List<int> _decodedChars;
+
+  int _chunkStartOffset;
 
   /**
    * Initialises the HTMLInputStream.
@@ -64,7 +87,7 @@ class HTMLInputStream {
    * for use by html5lib.
    *
    * [source] can be either a [String] or a [List<int>] containing the raw
-   * bytes.
+   * bytes, or a file if [ioSupport] is initialized.
    *
    * The optional encoding parameter must be a string that indicates
    * the encoding.  If specified, that encoding will be used,
@@ -73,9 +96,9 @@ class HTMLInputStream {
    *
    * [parseMeta] - Look for a <meta> element containing encoding information
    */
-  HTMLInputStream(source, [String encoding, bool parseMeta = true])
-      : newLines = [0],
-        charEncodingName = codecName(encoding),
+  HTMLInputStream(source, [String encoding, bool parseMeta = true,
+        this.generateSpans = false])
+      : charEncodingName = codecName(encoding),
         charsUntilRegEx = new Map() {
 
     if (source is String) {
@@ -87,10 +110,17 @@ class HTMLInputStream {
     } else if (source is List<int>) {
       rawBytes = source;
     } else {
-      // TODO(jmesserly): we should accept some kind of stream API too.
-      // Unfortunately dart:io InputStream is async only, which won't work.
-      throw new IllegalArgumentException(
-          'source must be a String, RandomAccessFile, or List<int>');
+      // TODO(jmesserly): it's unfortunate we need to read all bytes in advance,
+      // but it's necessary because of how the UTF decoders work.
+      rawBytes = ioSupport.bytesFromFile(source);
+
+      if (rawBytes == null) {
+        // TODO(jmesserly): we should accept some kind of stream API too.
+        // Unfortunately dart:io InputStream is async only, which won't work.
+        throw new IllegalArgumentException("'source' must be a String or "
+            "List<int> (of bytes). You can also pass a RandomAccessFile if you"
+            "import 'package:html5lib/parser_io' and call initDartIOSupport.");
+      }
     }
 
     // Detect encoding iff no explicit "transport level" encoding is supplied
@@ -106,9 +136,18 @@ class HTMLInputStream {
     chunk = "";
     chunkOffset = 0;
     errors = new Queue<String>();
-    prevNumLines = 0;
-    prevNumCols = 0;
     _bufferedCharacter = null;
+
+    _lineStarts = <int>[0];
+
+    // TODO(jmesserly): maybe this should be a separate flag?
+    // It seems possible you could want SourceSpans without keeping the source
+    // text around in memory like _decodedChars does.
+    if (generateSpans) {
+      _decodedChars = <int>[];
+    }
+    _chunkStartOffset = 0;
+    fileInfo = new SourceFileInfo(_lineStarts, _decodedChars);
   }
 
 
@@ -187,27 +226,11 @@ class HTMLInputStream {
     return encoding;
   }
 
-  Span _position(int offset) {
-    var nLines = 1;
-    var lastLinePos = -1;
-    for (int i = 0; i < offset; i++) {
-      if (chunk.charCodeAt(i) == NEWLINE) {
-        lastLinePos = i;
-        nLines++;
-      }
-    }
-    var positionLine = prevNumLines + nLines;
-    var positionColumn;
-    if (lastLinePos == -1) {
-      positionColumn = prevNumCols + offset;
-    } else {
-      positionColumn = offset - (lastLinePos + 1);
-    }
-    return new Span(positionLine, positionColumn);
-  }
-
-  /** Returns (line, col) of the current position in the stream. */
-  Span position() => _position(chunkOffset);
+  /**
+   * Returns the current offset in the stream, i.e. the number of codepoints
+   * since the start of the file.
+   */
+  int get position => chunkOffset + _chunkStartOffset;
 
   /**
    * Read one character from the stream or queue if available. Return
@@ -220,7 +243,6 @@ class HTMLInputStream {
         return EOF;
       }
     }
-
     return chunk[chunkOffset++];
   }
 
@@ -233,10 +255,7 @@ class HTMLInputStream {
       readSize = _defaultChunkSize;
     }
 
-    var pos = _position(chunk.length);
-    prevNumLines = pos.line - 1; // make it 0-based
-    prevNumCols = pos.column;
-
+    _chunkStartOffset += chunk.length;
     chunk = "";
     chunkOffset = 0;
 
@@ -244,9 +263,15 @@ class HTMLInputStream {
       // perform the initial decode
       dataStream = decodeBytes(charEncodingName, rawBytes).iterator();
     }
+
     var charCodes = [];
     for (int i = 0; i < readSize && dataStream.hasNext(); i++) {
-      charCodes.add(dataStream.next());
+      int charCode = dataStream.next();
+      charCodes.add(charCode);
+      if (_decodedChars != null) _decodedChars.add(charCode);
+      if (charCode == NEWLINE) {
+        _lineStarts.add(_chunkStartOffset + charCodes.length);
+      }
     }
     var data = codepointsToString(charCodes);
 

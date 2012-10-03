@@ -2,7 +2,6 @@
 library char_encodings;
 
 import 'dart:utf';
-import 'client_server_io.dart';
 
 // TODO(jmesserly): this function is conspicuously absent from dart:utf.
 /**
@@ -36,7 +35,10 @@ Iterable<int> decodeBytes(String encoding, List<int> bytes,
       // TODO(jmesserly): this was taken from runtime/bin/string_stream.dart
       for (int byte in bytes) {
         if (byte > 127) {
-          throw new DecoderException("Illegal ASCII character $byte");
+          // TODO(jmesserly): ideally this would be DecoderException, like the
+          // one thrown in runtime/bin/string_stream.dart, but we don't want to
+          // depend on dart:io.
+          throw new FormatException("Illegal ASCII character $byte");
         }
       }
       return bytes;
@@ -81,7 +83,7 @@ Iterable<int> decodeBytes(String encoding, List<int> bytes,
  *
  * This is useful for fixing strings returned by [JSON.parse], if the JSON
  * has UTF-16 encoded via surrogate pairs of characters. For example,
- * `"\ud835\udd04"` should translate to a one character stirng with the code
+ * `"\ud835\udd04"` should translate to a one character string with the code
  * point `0x01d504`.
  */
 String decodeUtf16Surrogates(String input) {

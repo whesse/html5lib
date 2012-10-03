@@ -82,24 +82,6 @@ String padWithZeros(String str, int size) {
   return result.toString();
 }
 
-
-/**
- * Note: this is meant to match:
- * <http://docs.python.org/library/xml.sax.utils.html#xml.sax.saxutils.escape>
- * So we only escape `&` `<` and `>`, unlike Dart's htmlEscape function.
- */
-String htmlEscapeMinimal(String text, [Map extraReplace]) {
-  // TODO(efortuna): A more efficient implementation.
-  text = text.replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;");
-  if (extraReplace != null) {
-    extraReplace.forEach((k, v) { text = text.replaceAll(k, v); });
-  }
-  return text;
-}
-
-
 // TODO(jmesserly): this implementation is pretty wrong, but I need something
 // quick until dartbug.com/1694 is fixed.
 /**

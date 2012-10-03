@@ -8,16 +8,10 @@ import 'src/constants.dart';
 import 'src/list_proxy.dart';
 import 'src/treebuilder.dart';
 import 'src/utils.dart';
+import 'dom_parsing.dart';
 
-class Span {
-  /** The line of this span. 1-based. */
-  final int line;
-
-  /** The column of this span. */
-  final int column;
-
-  Span(this.line, this.column);
-}
+// For doc comment only:
+import 'parser.dart' as parser; // show HtmlParser
 
 // TODO(jmesserly): I added this class to replace the tuple usage in Python.
 // How does this fit in to dart:html?
@@ -57,7 +51,6 @@ class AttributeName implements Comparable {
   }
 }
 
-// TODO(jmesserly): move code away from $dom methods
 /** Really basic implementation of a DOM-core like Node. */
 abstract class Node {
   static const int ATTRIBUTE_NODE = 2;
@@ -94,6 +87,12 @@ abstract class Node {
    * include all elements but not necessarily other node types.
    */
   final NodeList nodes;
+
+  /**
+   * The source span of this node, if it was created by the
+   * [parser.HtmlParser].
+   */
+  SourceSpan span;
 
   Node(this.tagName)
       : attributes = {},
@@ -352,9 +351,7 @@ class Element extends Node {
     }
     // void elements must not have an end tag
     // http://dev.w3.org/html5/markup/syntax.html#void-elements
-    if (voidElements.indexOf(tagName) < 0) {
-      str.add('</$tagName>');
-    }
+    if (!isVoidElement(tagName)) str.add('</$tagName>');
     return str;
   }
 
@@ -458,107 +455,5 @@ class NodeList extends ListProxy<Node> {
           'multiple times.');
     }
     super.insertRange(start, 1, _setParent(initialValue));
-  }
-}
-
-
-/** A simple tree visitor for the DOM nodes. */
-class TreeVisitor {
-  visit(Node node) {
-    switch (node.nodeType) {
-      case Node.ELEMENT_NODE: return visitElement(node);
-      case Node.TEXT_NODE: return visitText(node);
-      case Node.COMMENT_NODE: return visitComment(node);
-      case Node.DOCUMENT_FRAGMENT_NODE: return visitDocumentFragment(node);
-      case Node.DOCUMENT_NODE: return visitDocument(node);
-      case Node.DOCUMENT_TYPE_NODE: return visitDocumentType(node);
-      default: throw new UnsupportedOperationException(
-          'DOM node type ${node.nodeType}');
-    }
-  }
-
-  visitChildren(Node node) {
-    for (var child in node.nodes) visit(child);
-  }
-
-  /**
-   * The fallback handler if the more specific visit method hasn't been
-   * overriden. Only use this from a subclass of [TreeVisitor], otherwise
-   * call [visit] instead.
-   */
-  visitNodeFallback(Node node) => visitChildren(node);
-
-  visitDocument(Document node) => visitNodeFallback(node);
-
-  visitDocumentType(DocumentType node) => visitNodeFallback(node);
-
-  visitText(Text node) => visitNodeFallback(node);
-
-  // TODO(jmesserly): visit attributes.
-  visitElement(Element node) => visitNodeFallback(node);
-
-  visitComment(Comment node) => visitNodeFallback(node);
-
-  // Note: visits document by default because DocumentFragment is a Document.
-  visitDocumentFragment(DocumentFragment node) => visitDocument(node);
-}
-
-/**
- * Converts the DOM tree into an HTML string with code markup suitable for
- * displaying the HTML's source code with CSS colors for different parts of the
- * markup. See also [CodeMarkupVisitor].
- */
-String htmlToCodeMarkup(Node node) {
-  return (new CodeMarkupVisitor()..visit(node)).toString();
-}
-
-/**
- * Converts the DOM tree into an HTML string with code markup suitable for
- * displaying the HTML's source code with CSS colors for different parts of the
- * markup. See also [htmlToCodeMarkup].
- */
-class CodeMarkupVisitor extends TreeVisitor {
-  final StringBuffer _str;
-
-  CodeMarkupVisitor() : _str = new StringBuffer();
-
-  String toString() => _str.toString();
-
-  visitDocument(Document node) {
-    _str.add("<pre>");
-    visitChildren(node);
-    _str.add("</pre>");
-  }
-
-  visitDocumentType(DocumentType node) {
-    _str.add('<code class="markup doctype">&lt;!DOCTYPE ${node.tagName}></code>');
-  }
-
-  visitText(Text node) {
-    node._addOuterHtml(_str);
-  }
-
-  visitElement(Element node) {
-    _str.add('&lt;<code class="markup element-name">${node.tagName}</code>');
-    if (node.attributes.length > 0) {
-      node.attributes.forEach((key, v) {
-        v = htmlEscapeMinimal(v, {'"': "&quot;"});
-        _str.add(' <code class="markup attribute-name">$key</code>'
-            '=<code class="markup attribute-value">"$v"</code>');
-      });
-    }
-    if (node.nodes.length > 0) {
-      _str.add(">");
-      visitChildren(node);
-    } else if (voidElements.indexOf(node.tagName) >= 0) {
-      _str.add(">");
-      return;
-    }
-    _str.add('&lt;/<code class="markup element-name">${node.tagName}</code>>');
-  }
-
-  visitComment(Comment node) {
-    var data = htmlEscapeMinimal(node.data);
-    _str.add('<code class="markup comment">&lt;!--${data}--></code>');
   }
 }

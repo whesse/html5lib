@@ -29,7 +29,7 @@ class DataLossWarning extends UserWarning {
 // TODO(jmesserly): assuming the programmatic name is not important, it would be
 // good to make these "static const" fields on an ErrorMessage class.
 /**
- * These are error messages emitted by [HTMLParser]. The values use Python style
+ * These are error messages emitted by [HtmlParser]. The values use Python style
  * string formatting, as implemented by [formatStr]. That function only supports
  * the subset of format functionality used here.
  */
@@ -309,7 +309,7 @@ final Map<String, String> errorMessages = const {
      "Element %(name)s not allowed in a non-html context",
   "unexpected-end-tag-before-html":
       "Unexpected end tag (%(name)s) before html.",
-  "XXX-undefined-error":
+  "undefined-error":
       "Undefined error (this sucks and should be fixed)",
 };
 
@@ -560,12 +560,6 @@ final headingElements = const [
   "h4",
   "h5",
   "h6"
-];
-
-// http://dev.w3.org/html5/markup/syntax.html#void-elements
-final voidElements = const [
-  "area", "base", "br", "col", "command", "embed", "hr", "img", "input",
-  "keygen", "link", "meta", "param", "source", "track", "wbr"
 ];
 
 final cdataElements = const ['title', 'textarea'];
