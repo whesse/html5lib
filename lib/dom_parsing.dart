@@ -285,7 +285,7 @@ class CodeMarkupVisitor extends TreeVisitor {
     _str.add('&lt;<code class="markup element-name">${node.tagName}</code>');
     if (node.attributes.length > 0) {
       node.attributes.forEach((key, v) {
-        v = htmlEscapeMinimal(v, {'"': "&quot;"});
+        v = htmlSerializeEscape(v, attributeMode: true);
         _str.add(' <code class="markup attribute-name">$key</code>'
             '=<code class="markup attribute-value">"$v"</code>');
       });
@@ -301,26 +301,54 @@ class CodeMarkupVisitor extends TreeVisitor {
   }
 
   visitComment(Comment node) {
-    var data = htmlEscapeMinimal(node.data);
+    var data = htmlSerializeEscape(node.data);
     _str.add('<code class="markup comment">&lt;!--${data}--></code>');
   }
 }
 
 
+// TODO(jmesserly): reconcile this with dart:web htmlEscape.
+// This one might be more useful, as it is HTML5 spec compliant.
 /**
- * Note: this is meant to match:
- * <http://docs.python.org/library/xml.sax.utils.html#xml.sax.saxutils.escape>
- * So we only escape `&` `<` and `>`, unlike Dart's htmlEscape function.
+ * Escapes [text] for use in the
+ * [HTML fragment serialization algorithm][1]. In particular, as described
+ * in the [specification][2]:
+ *
+ * - Replace any occurrence of the `&` character by the string `&amp;`.
+ * - Replace any occurrences of the U+00A0 NO-BREAK SPACE character by the
+ *   string `&nbsp;`.
+ * - If the algorithm was invoked in [attributeMode], replace any occurrences of
+ *   the `"` character by the string `&quot;`.
+ * - If the algorithm was not invoked in [attributeMode], replace any
+ *   occurrences of the `<` character by the string `&lt;`, and any occurrences
+ *   of the `>` character by the string `&gt;`.
+ *
+ * [1]: http://www.whatwg.org/specs/web-apps/current-work/multipage/the-end.html#serializing-html-fragments
+ * [2]: http://www.whatwg.org/specs/web-apps/current-work/multipage/the-end.html#escapingString
  */
-String htmlEscapeMinimal(String text, [Map extraReplace]) {
-  // TODO(efortuna): A more efficient implementation.
-  text = text.replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;");
-  if (extraReplace != null) {
-    extraReplace.forEach((k, v) { text = text.replaceAll(k, v); });
+String htmlSerializeEscape(String text, {bool attributeMode: false}) {
+  // TODO(jmesserly): is it faster to build up a list of codepoints?
+  // StringBuffer seems cleaner assuming Dart can unbox 1-char strings.
+  StringBuffer result = null;
+  for (int i = 0; i < text.length; i++) {
+    var ch = text[i];
+    String replace = null;
+    switch (ch) {
+      case '&': replace = '&amp;'; break;
+      case '\u00A0'/*NO-BREAK SPACE*/: replace = '&nbsp;'; break;
+      case '"': if (attributeMode) replace = '&quot;'; break;
+      case '<': if (!attributeMode) replace = '&lt;'; break;
+      case '>': if (!attributeMode) replace = '&gt;'; break;
+    }
+    if (replace != null) {
+      if (result == null) result = new StringBuffer(text.substring(0, i));
+      result.add(replace);
+    } else if (result != null) {
+      result.add(ch);
+    }
   }
-  return text;
+
+  return result != null ? result.toString() : text;
 }
 
 

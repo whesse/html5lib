@@ -57,8 +57,8 @@ List slice(List list, int start, [int end]) {
 }
 
 /** Makes a dictionary, where the first key wins. */
-Map makeDict(List<List> items) {
-  var result = new Map();
+LinkedHashMap makeDict(List<List> items) {
+  var result = new LinkedHashMap();
   for (var item in items) {
     expect(item.length, equals(2));
     result.putIfAbsent(item[0], () => item[1]);

@@ -27,6 +27,15 @@ class AttributeName implements Comparable {
 
   const AttributeName(this.prefix, this.name, this.namespace);
 
+  String toString() {
+    // Implement:
+    // http://www.whatwg.org/specs/web-apps/current-work/multipage/the-end.html#serializing-html-fragments
+    // If we get here we know we are xml, xmlns, or xlink, because of
+    // [HtmlParser.adjustForeignAttriubtes] is the only place we create
+    // an AttributeName.
+    return prefix != null ? '$prefix:$name' : name;
+  }
+
   int hashCode() {
     int h = prefix.hashCode();
     h = 37 * (h & 0x1FFFFF) + name.hashCode();
@@ -79,8 +88,13 @@ abstract class Node {
   /** The parent of the current node (or null for the document node). */
   Node parent;
 
-  /** A map holding name, value pairs for attributes of the node. */
-  Map attributes;
+  /**
+   * A map holding name, value pairs for attributes of the node.
+   *
+   * Note that attribute order needs to be stable for serialization, so we use a
+   * LinkedHashMap. Each key is a [String] or [AttributeName].
+   */
+  LinkedHashMap<Dynamic, String> attributes;
 
   /**
    * A list of child nodes of the current node. This must
@@ -95,7 +109,7 @@ abstract class Node {
   SourceSpan span;
 
   Node(this.tagName)
-      : attributes = {},
+      : attributes = new LinkedHashMap(),
         nodes = new NodeList._(),
         _hashCode = ++_lastHashCode {
     nodes._parent = this;
@@ -296,6 +310,8 @@ class DocumentType extends Node {
 
   String toString() {
     if (publicId != null || systemId != null) {
+      // TODO(jmesserly): the html5 serialization spec does not add these. But
+      // it seems useful, and the parser can handle it, so for now keeping it.
       var pid = publicId != null ? publicId : '';
       var sid = systemId != null ? systemId : '';
       return '<!DOCTYPE $tagName "$pid" "$sid">';
@@ -319,8 +335,15 @@ class Text extends Node {
 
   String toString() => '"$value"';
 
-  StringBuffer _addOuterHtml(StringBuffer str) =>
-      str.add(htmlEscapeMinimal(value));
+  StringBuffer _addOuterHtml(StringBuffer str) {
+    // Don't escape text for certain elements, notably <script>.
+    if (rcdataElements.indexOf(parent.tagName) >= 0 ||
+        parent.tagName == 'plaintext') {
+      str.add(value);
+    } else {
+      str.add(htmlSerializeEscape(value));
+    }
+  }
 
   Text clone() => new Text(value);
 }
@@ -338,25 +361,49 @@ class Element extends Node {
   }
 
   StringBuffer _addOuterHtml(StringBuffer str) {
-    str.add('<$tagName');
+    // http://www.whatwg.org/specs/web-apps/current-work/multipage/the-end.html#serializing-html-fragments
+    // Element is the most complicated one.
+    if (namespace == null ||
+        namespace == Namespaces.html ||
+        namespace == Namespaces.mathml ||
+        namespace == Namespaces.svg) {
+      str.add('<$tagName');
+    } else {
+      // TODO(jmesserly): the spec doesn't define "qualified name".
+      // I'm not sure if this is correct, but it should parse reasonably.
+      str.add('<${Namespaces.getPrefix(namespace)}:$tagName');
+    }
+
     if (attributes.length > 0) {
       attributes.forEach((key, v) {
-        v = htmlEscapeMinimal(v, {'"': "&quot;"});
-        str.add(' $key="$v"');
+        // Note: AttributeName.toString handles serialization of attribute
+        // namespace, if needed.
+        str.add(' $key="${htmlSerializeEscape(v, attributeMode: true)}"');
       });
     }
+
     str.add('>');
+
     if (nodes.length > 0) {
+      if (tagName == 'pre' || tagName == 'textarea' || tagName == 'listing') {
+        if (nodes[0] is Text && nodes[0].value.startsWith('\n')) {
+          // These nodes will remove a leading \n at parse time, so if we still
+          // have one, it means we started with two. Add it back.
+          str.add('\n');
+        }
+      }
+
       _addInnerHtml(str);
     }
+
     // void elements must not have an end tag
     // http://dev.w3.org/html5/markup/syntax.html#void-elements
     if (!isVoidElement(tagName)) str.add('</$tagName>');
     return str;
   }
 
-  Element clone() =>
-      new Element(tagName, namespace)..attributes = new Map.from(attributes);
+  Element clone() => new Element(tagName, namespace)
+      ..attributes = new LinkedHashMap.from(attributes);
 }
 
 class Comment extends Node {

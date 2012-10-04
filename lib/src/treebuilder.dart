@@ -185,7 +185,7 @@ class TreeBuilder {
       var cloneToken = new StartTagToken(
           entry.tagName,
           namespace: entry.namespace,
-          data: new Map.from(entry.attributes))
+          data: new LinkedHashMap.from(entry.attributes))
           ..span = entry.span;
 
       // Step 9

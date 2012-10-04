@@ -1531,7 +1531,7 @@ class InBodyPhase extends Phase {
       prompt = "This is a searchable index. Enter search keywords: ";
     }
     processCharacters(new CharactersToken(prompt));
-    var attributes = new Map.from(token.data);
+    var attributes = new LinkedHashMap.from(token.data);
     attributes.remove('action');
     attributes.remove('prompt');
     attributes["name"] = "isindex";

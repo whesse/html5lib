@@ -15,17 +15,6 @@ class ReparseException implements Exception {
   String toString() => "ReparseException: $message";
 }
 
-class UserWarning implements Exception {
-  final String message;
-  UserWarning(this.message);
-  String toString() => "UserWarning: $message";
-}
-
-class DataLossWarning extends UserWarning {
-  DataLossWarning(String message) : super(message);
-  String toString() => "DataLossWarning: $message";
-}
-
 // TODO(jmesserly): assuming the programmatic name is not important, it would be
 // good to make these "static const" fields on an ErrorMessage class.
 /**
