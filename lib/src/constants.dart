@@ -73,7 +73,7 @@ final Map<String, String> errorMessages = const {
   "eof-in-attribute-name":
      "Unexpected end of file in attribute name.",
   "invalid-character-in-attribute-name":
-      "Invalid chracter in attribute name",
+      "Invalid character in attribute name",
   "duplicate-attribute":
      "Dropped duplicate attribute on tag.",
   "expected-end-of-tag-name-but-got-eof":
