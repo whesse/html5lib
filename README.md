@@ -12,10 +12,10 @@ Installation
 ------------
 
 Add this to your `pubspec.yaml` (or create it):
-
-    dependencies:
-      html5lib: any
-
+```yaml
+dependencies:
+  html5lib: any
+```
 Then run the [Pub Package Manager][pub] (comes with the Dart SDK):
 
     pub install
@@ -24,15 +24,16 @@ Usage
 -----
 
 Parsing HTML is easy!
+```dart
+import 'package:html5lib/parser.dart'; // show parse
+import 'package:html5lib/dom.dart';
 
-    import 'package:html5lib/parser.dart'; // show parse
-    import 'package:html5lib/dom.dart';
-
-    main() {
-      var document = parse(
-        '<body>Hello world! <a href="www.html5rocks.com">HTML5 rocks!');
-      print(document.outerHTML);
-    }
+main() {
+  var document = parse(
+      '<body>Hello world! <a href="www.html5rocks.com">HTML5 rocks!');
+  print(document.outerHTML);
+}
+```
 
 You can pass a String or list of bytes to `parse`.
 There's also `parseFragment` for parsing a document fragment, and `HtmlParser`
@@ -75,14 +76,14 @@ Running Tests
 -------------
 
 All tests should be passing.
+```bash
+# Make sure dependencies are installed
+pub install
 
-    # Make sure dependencies are installed
-    pub install
-
-    # Run command line tests
-    #export DART_SDK=path/to/dart/sdk
-    test/run.sh
-
+# Run command line tests
+#export DART_SDK=path/to/dart/sdk
+test/run.sh
+```
 
 [dart]: http://www.dartlang.org/
 [html5parse]: http://dev.w3.org/html5/spec/parsing.html
