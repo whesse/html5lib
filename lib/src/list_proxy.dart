@@ -56,7 +56,9 @@ class ListProxy<E> implements List<E> {
   void add(E value) { _list.add(value); }
   void addLast(E value) { _list.addLast(value); }
   void addAll(Collection<E> collection) { _list.addAll(collection); }
-  void sort(int compare(E a, E b)) { _list.sort(compare); }
+  void sort([Comparator<E> compare = Comparable.compare]) {
+    _list.sort(compare);
+  }
   void clear() { _list.clear(); }
   E removeAt(int index) {
     // TODO(jmesserly): removeAt not implemented on the VM?
