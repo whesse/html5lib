@@ -4,7 +4,7 @@ library token;
 import 'package:html5lib/dom_parsing.dart' as dom_parsing; // show SourceSpan
 
 /** An html5 token. */
-class Token {
+abstract class Token {
   dom_parsing.SourceSpan span;
 
   abstract int get kind;
@@ -15,7 +15,7 @@ class Token {
   abstract set data(value);
 }
 
-class TagToken extends Token {
+abstract class TagToken extends Token {
   String name;
 
   // TODO(jmesserly): this starts as a List, but becomes a Map of attributes.
@@ -48,7 +48,7 @@ class EndTagToken extends TagToken {
   int get kind => TokenKind.endTag;
 }
 
-class StringToken extends Token {
+abstract class StringToken extends Token {
   String data;
   StringToken(this.data);
 }

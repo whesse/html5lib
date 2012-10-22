@@ -231,9 +231,9 @@ class HtmlParser {
     compatMode = "no quirks";
 
     if (innerHTMLMode) {
-      if (cdataElements.indexOf(innerHTML) >= 0) {
+      if (cdataElements.contains(innerHTML)) {
         tokenizer.state = tokenizer.rcdataState;
-      } else if (rcdataElements.indexOf(innerHTML) >= 0) {
+      } else if (rcdataElements.contains(innerHTML)) {
         tokenizer.state = tokenizer.rawtextState;
       } else if (innerHTML == 'plaintext') {
         tokenizer.state = tokenizer.plaintextState;
@@ -260,14 +260,14 @@ class HtmlParser {
       if (enc != null) enc = asciiUpper2Lower(enc);
       return enc == "text/html" || enc == "application/xhtml+xml";
     } else {
-      return htmlIntegrationPointElements.indexOf(
-          new Pair(element.namespace, element.tagName)) >= 0;
+      return htmlIntegrationPointElements.contains(
+          new Pair(element.namespace, element.tagName));
     }
   }
 
   bool isMathMLTextIntegrationPoint(Node element) {
-    return mathmlTextIntegrationPointElements.indexOf(
-        new Pair(element.namespace, element.tagName)) >= 0;
+    return mathmlTextIntegrationPointElements.contains(
+        new Pair(element.namespace, element.tagName));
   }
 
   bool inForeignContent(Token token, int type) {
@@ -360,7 +360,7 @@ class HtmlParser {
       reprocessPhases.add(phase);
       reprocess = phase.processEOF();
       if (reprocess) {
-        assert(reprocessPhases.indexOf(phase) == -1);
+        assert(!reprocessPhases.contains(phase));
       }
     }
   }
@@ -723,7 +723,7 @@ class InitialPhase extends Phase {
           "-//webtechs//dtd mozilla html//"])
         || const ["-//w3o//dtd w3 html strict 3.0//en//",
            "-/w3c/dtd html 4.0 transitional/en",
-           "html"].indexOf(publicId) >= 0
+           "html"].contains(publicId)
         || startsWithAny(publicId, const [
            "-//w3c//dtd html 4.01 frameset//",
            "-//w3c//dtd html 4.01 transitional//"]) && systemId == null
@@ -1260,7 +1260,7 @@ class InBodyPhase extends Phase {
     dropNewline = false;
     if (data.startsWith("\n")) {
       var lastOpen = tree.openElements.last();
-      if (const ["pre", "listing", "textarea"].indexOf(lastOpen.tagName) >= 0
+      if (const ["pre", "listing", "textarea"].contains(lastOpen.tagName)
           && !lastOpen.hasContent()) {
         data = data.substring(1);
       }
@@ -1364,12 +1364,12 @@ class InBodyPhase extends Phase {
                                 "dd": const ["dt", "dd"]};
     var stopNames = stopNamesMap[token.name];
     for (Node node in reversed(tree.openElements)) {
-      if (stopNames.indexOf(node.tagName) >= 0) {
+      if (stopNames.contains(node.tagName)) {
         parser.phase.processEndTag(new EndTagToken(node.tagName, data: {}));
         break;
       }
-      if (specialElements.indexOf(node.nameTuple) >= 0 &&
-          const ["address", "div", "p"].indexOf(node.tagName) == -1) {
+      if (specialElements.contains(node.nameTuple) &&
+          !const ["address", "div", "p"].contains(node.tagName)) {
         break;
       }
     }
@@ -1393,7 +1393,7 @@ class InBodyPhase extends Phase {
     if (tree.elementInScope("p", variant: "button")) {
       endTagP(new EndTagToken("p", data: {}));
     }
-    if (headingElements.indexOf(tree.openElements.last().tagName) >= 0) {
+    if (headingElements.contains(tree.openElements.last().tagName)) {
       parser.parseError(token.span, "unexpected-start-tag",
           {"name": token.name});
       tree.openElements.removeLast();
@@ -1746,7 +1746,7 @@ class InBodyPhase extends Phase {
     for (var item in headingElements) {
       if (tree.elementInScope(item)) {
         item = tree.openElements.removeLast();
-        while (headingElements.indexOf(item.tagName) == -1) {
+        while (!headingElements.contains(item.tagName)) {
           item = tree.openElements.removeLast();
         }
         break;
@@ -1769,20 +1769,23 @@ class InBodyPhase extends Phase {
       var formattingElement = tree.elementInActiveFormattingElements(
           token.name);
       if (formattingElement == null ||
-          (tree.openElements.indexOf(formattingElement) >= 0 &&
+          (tree.openElements.contains(formattingElement) &&
            !tree.elementInScope(formattingElement.tagName))) {
-        parser.parseError(token.span, "adoption-agency-1.1", {"name": token.name});
+        parser.parseError(token.span, "adoption-agency-1.1",
+            {"name": token.name});
         return;
       // Step 1 paragraph 2
-      } else if (tree.openElements.indexOf(formattingElement) == -1) {
-        parser.parseError(token.span, "adoption-agency-1.2", {"name": token.name});
+      } else if (!tree.openElements.contains(formattingElement)) {
+        parser.parseError(token.span, "adoption-agency-1.2",
+            {"name": token.name});
         tree.activeFormattingElements.remove(formattingElement);
         return;
       }
 
       // Step 1 paragraph 3
       if (formattingElement != tree.openElements.last()) {
-        parser.parseError(token.span, "adoption-agency-1.3", {"name": token.name});
+        parser.parseError(token.span, "adoption-agency-1.3",
+            {"name": token.name});
       }
 
       // Step 2
@@ -1790,7 +1793,7 @@ class InBodyPhase extends Phase {
       var afeIndex = tree.openElements.indexOf(formattingElement);
       Node furthestBlock = null;
       for (Node element in slice(tree.openElements, afeIndex)) {
-        if (specialElements.indexOf(element.nameTuple) >= 0) {
+        if (specialElements.contains(element.nameTuple)) {
           furthestBlock = element;
           break;
         }
@@ -1826,7 +1829,7 @@ class InBodyPhase extends Phase {
         // Node is element before node in open elements
         index -= 1;
         node = tree.openElements[index];
-        if (tree.activeFormattingElements.indexOf(node) == -1) {
+        if (!tree.activeFormattingElements.contains(node)) {
           tree.openElements.remove(node);
           continue;
         }
@@ -1866,8 +1869,8 @@ class InBodyPhase extends Phase {
         lastNode.parent.nodes.remove(lastNode);
       }
 
-      if (const ["table", "tbody", "tfoot", "thead", "tr"].indexOf(
-          commonAncestor.tagName) >= 0) {
+      if (const ["table", "tbody", "tfoot", "thead", "tr"].contains(
+          commonAncestor.tagName)) {
         var nodePos = tree.getTableMisnestedNodePosition();
         nodePos[0].insertBefore(lastNode, nodePos[1]);
       } else {
@@ -1921,13 +1924,15 @@ class InBodyPhase extends Phase {
       if (node.tagName == token.name) {
         tree.generateImpliedEndTags(exclude: token.name);
         if (tree.openElements.last().tagName != token.name) {
-          parser.parseError(token.span, "unexpected-end-tag", {"name": token.name});
+          parser.parseError(token.span, "unexpected-end-tag",
+              {"name": token.name});
         }
         while (tree.openElements.removeLast() != node);
         break;
       } else {
-        if (specialElements.indexOf(node.nameTuple) >= 0) {
-          parser.parseError(token.span, "unexpected-end-tag", {"name": token.name});
+        if (specialElements.contains(node.nameTuple)) {
+          parser.parseError(token.span, "unexpected-end-tag",
+              {"name": token.name});
           break;
         }
       }
@@ -2422,8 +2427,8 @@ class InTableBodyPhase extends Phase {
 
   // helper methods
   void clearStackToTableBodyContext() {
-    while (const ["tbody", "tfoot","thead", "html"].indexOf(
-        tree.openElements.last().tagName) == -1) {
+    var tableTags = const ["tbody", "tfoot", "thead", "html"];
+    while (!tableTags.contains(tree.openElements.last().tagName)) {
       //XXX parser.parseError(token.span, "unexpected-implied-end-tag-in-table",
       //  {"name": tree.openElements.last().name})
       tree.openElements.removeLast();
@@ -2973,7 +2978,7 @@ class InForeignContentPhase extends Phase {
 
   Token processStartTag(StartTagToken token) {
     var currentNode = tree.openElements.last();
-    if (breakoutElements.indexOf(token.name) >= 0 ||
+    if (breakoutElements.contains(token.name) ||
         (token.name == "font" &&
          (token.data.containsKey("color") ||
           token.data.containsKey("face") ||

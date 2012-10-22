@@ -136,8 +136,8 @@ class TreeBuilder {
           node == target && exactNode) {
         return true;
       } else if (invert !=
-          (listElements1.indexOf(node.nameTuple) >= 0 ||
-           listElements2.indexOf(node.nameTuple) >= 0)) {
+          (listElements1.contains(node.nameTuple) ||
+           listElements2.contains(node.nameTuple))) {
         return false;
       }
     }
@@ -158,12 +158,12 @@ class TreeBuilder {
     // Step 2 and step 3: we start with the last element. So i is -1.
     int i = activeFormattingElements.length - 1;
     var entry = activeFormattingElements[i];
-    if (entry == Marker || openElements.indexOf(entry) >= 0) {
+    if (entry == Marker || openElements.contains(entry)) {
       return;
     }
 
     // Step 6
-    while (entry != Marker && openElements.indexOf(entry) == -1) {
+    while (entry != Marker && !openElements.contains(entry)) {
       if (i == 0) {
         //This will be reset to 0 below
         i = -1;
@@ -276,7 +276,7 @@ class TreeBuilder {
   Element insertElementTable(token) {
     /** Create an element and insert it into the tree */
     var element = createElement(token);
-    if (tableInsertModeElements.indexOf(openElements.last().tagName) == -1) {
+    if (!tableInsertModeElements.contains(openElements.last().tagName)) {
       return insertElementNormal(token);
     } else {
       // We should be in the InTable mode. This means we want to do
@@ -300,7 +300,7 @@ class TreeBuilder {
     var parent = openElements.last();
 
     if (!insertFromTable || insertFromTable &&
-        tableInsertModeElements.indexOf(openElements.last().tagName) == -1) {
+        !tableInsertModeElements.contains(openElements.last().tagName)) {
       _insertText(parent, data, span);
     } else {
       // We should be in the InTable mode. This means we want to do
@@ -371,7 +371,7 @@ class TreeBuilder {
     var name = openElements.last().tagName;
     // XXX td, th and tr are not actually needed
     if (name != exclude && const ["dd", "dt", "li", "option", "optgroup", "p",
-        "rp", "rt"].indexOf(name) >= 0) {
+        "rp", "rt"].contains(name)) {
       openElements.removeLast();
       // XXX This is not entirely what the specification says. We should
       // investigate it more closely.

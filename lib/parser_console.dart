@@ -3,7 +3,7 @@
  * [initDartIOSupport] before calling the [parse] methods and they will accept
  * a [RandomAccessFile] as input, in addition to the other input types.
  */
-library parser_io;
+library parser_console;
 
 import 'dart:io';
 import 'parser.dart';
@@ -14,11 +14,11 @@ import 'src/inputstream.dart' as inputstream;
  * be able to handle [RandomAccessFile]s as input to the various [parse]
  * methods.
  */
-void initDartIOSupport() {
-  inputstream.ioSupport = new _IOSupport();
+void initDartIoSupport() {
+  inputstream.ioSupport = new _IoSupport();
 }
 
-class _IOSupport extends inputstream.IOSupport {
+class _IoSupport extends inputstream.IoSupport {
   List<int> bytesFromFile(source) {
     if (source is! RandomAccessFile) return null;
     return readAllBytesFromFile(source);

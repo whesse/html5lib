@@ -4,10 +4,10 @@ import 'utils.dart';
 import 'token.dart';
 
 // TODO(jmesserly): fix up the const lists. For the bigger ones, we need faster
-// lookup than linear search "indexOf". In the Python code they were frozensets.
+// lookup than linear search "contains". In the Python code they were
+// frozensets.
 
 final String EOF = null;
-
 
 class ReparseException implements Exception {
   final String message;

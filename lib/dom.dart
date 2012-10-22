@@ -337,7 +337,7 @@ class Text extends Node {
 
   StringBuffer _addOuterHtml(StringBuffer str) {
     // Don't escape text for certain elements, notably <script>.
-    if (rcdataElements.indexOf(parent.tagName) >= 0 ||
+    if (rcdataElements.contains(parent.tagName) ||
         parent.tagName == 'plaintext') {
       str.add(value);
     } else {

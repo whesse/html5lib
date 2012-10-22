@@ -33,6 +33,8 @@ class ListProxy<E> implements List<E> {
   // See http://code.google.com/p/dart/issues/detail?id=5375
   void insertAt(int index, E item) => insertRange(index, 1, item);
 
+  bool contains(E item) => _list.contains(item);
+
   // Implement every method from List ...
   Iterator<E> iterator() => _list.iterator();
   int get length => _list.length;
@@ -56,7 +58,7 @@ class ListProxy<E> implements List<E> {
   void add(E value) { _list.add(value); }
   void addLast(E value) { _list.addLast(value); }
   void addAll(Collection<E> collection) { _list.addAll(collection); }
-  void sort([Comparator<E> compare = Comparable.compare]) {
+  void sort([compare = Comparable.compare]) {
     _list.sort(compare);
   }
   void clear() { _list.clear(); }

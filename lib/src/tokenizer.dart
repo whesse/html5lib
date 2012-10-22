@@ -1,8 +1,8 @@
 library tokenizer;
 
+import 'dart:math';
 import 'package:html5lib/dom_parsing.dart'; // show SourceSpan
 import 'package:html5lib/parser.dart'; // show HtmlParser
-import 'dart:math';
 import 'constants.dart';
 import 'inputstream.dart';
 import 'token.dart';
@@ -184,7 +184,7 @@ class HTMLTokenizer implements Iterator<Token> {
                 0x9FFFF, 0xAFFFE, 0xAFFFF, 0xBFFFE,
                 0xBFFFF, 0xCFFFE, 0xCFFFF, 0xDFFFE,
                 0xDFFFF, 0xEFFFE, 0xEFFFF, 0xFFFFE,
-                0xFFFFF, 0x10FFFE, 0x10FFFF].indexOf(charAsInt) >= 0) {
+                0xFFFFF, 0x10FFFE, 0x10FFFF].contains(charAsInt)) {
         _addToken(new ParseErrorToken(
             "illegal-codepoint-for-numeric-entity",
             messageParams: {"charAsInt": charAsInt}));

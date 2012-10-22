@@ -8,19 +8,19 @@ import 'utils.dart';
 import 'encoding_parser.dart';
 
 /** Hooks to call into dart:io without directly referencing it. */
-class IOSupport {
+class IoSupport {
   List<int> bytesFromFile(source) => null;
 }
 
 // TODO(jmesserly): use lazy init here when supported.
-IOSupport _ioSupport;
+IoSupport _ioSupport;
 
-IOSupport get ioSupport {
-  if (_ioSupport == null) _ioSupport = new IOSupport();
+IoSupport get ioSupport {
+  if (_ioSupport == null) _ioSupport = new IoSupport();
   return _ioSupport;
 }
 
-set ioSupport(IOSupport value) {
+set ioSupport(IoSupport value) {
   _ioSupport = value;
 }
 
@@ -119,7 +119,8 @@ class HTMLInputStream {
         // Unfortunately dart:io InputStream is async only, which won't work.
         throw new IllegalArgumentException("'source' must be a String or "
             "List<int> (of bytes). You can also pass a RandomAccessFile if you"
-            "import 'package:html5lib/parser_io' and call initDartIOSupport.");
+            "import 'package:html5lib/parser_console' and call "
+            "initDartIOSupport.");
       }
     }
 
@@ -177,7 +178,7 @@ class HTMLInputStream {
 
   void changeEncoding(String newEncoding) {
     newEncoding = codecName(newEncoding);
-    if (const ["utf-16", "utf-16-be", "utf-16-le"].indexOf(newEncoding) >= 0) {
+    if (const ["utf-16", "utf-16-be", "utf-16-le"].contains(newEncoding)) {
       newEncoding = "utf-8";
     }
     if (newEncoding === null) {
@@ -219,7 +220,7 @@ class HTMLInputStream {
     var parser = new EncodingParser(slice(rawBytes, 0, numBytesMeta));
     var encoding = parser.getEncoding();
 
-    if (const ["utf-16", "utf-16-be", "utf-16-le"].indexOf(encoding) >= 0) {
+    if (const ["utf-16", "utf-16-be", "utf-16-le"].contains(encoding)) {
       encoding = "utf-8";
     }
 
