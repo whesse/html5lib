@@ -15,10 +15,10 @@ import 'src/inputstream.dart' as inputstream;
  * input to the various [parse] methods.
  */
 void useConsole() {
-  inputstream.ioSupport = new _IoSupport();
+  inputstream.consoleSupport = new _ConsoleSupport();
 }
 
-class _IoSupport extends inputstream.IoSupport {
+class _ConsoleSupport extends inputstream.ConsoleSupport {
   List<int> bytesFromFile(source) {
     if (source is! RandomAccessFile) return null;
     return readAllBytesFromFile(source);

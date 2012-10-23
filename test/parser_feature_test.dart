@@ -178,11 +178,11 @@ ParseError:4:3: Unexpected DOCTYPE. Ignored.
 
   test('dart:io', () {
     // ensure IO support is unregistered
-    inputstream.ioSupport = null;
+    expect(inputstream.consoleSupport,
+      new isInstanceOf<inputstream.ConsoleSupport>());
     var file = new File('test/data/parser_feature/raw_file.html').openSync();
     expect(() => parse(file), throwsA(new isInstanceOf<ArgumentError>()));
     parser_console.useConsole();
-    expect(inputstream.ioSupport, isNotNull);
     expect(parse(file).body.innerHTML.trim(), equals('Hello world!'));
   });
 }

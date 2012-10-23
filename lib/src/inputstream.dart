@@ -8,21 +8,12 @@ import 'utils.dart';
 import 'encoding_parser.dart';
 
 /** Hooks to call into dart:io without directly referencing it. */
-class IoSupport {
+class ConsoleSupport {
   List<int> bytesFromFile(source) => null;
 }
 
 // TODO(jmesserly): use lazy init here when supported.
-IoSupport _ioSupport;
-
-IoSupport get ioSupport {
-  if (_ioSupport == null) _ioSupport = new IoSupport();
-  return _ioSupport;
-}
-
-set ioSupport(IoSupport value) {
-  _ioSupport = value;
-}
+ConsoleSupport consoleSupport = new ConsoleSupport();
 
 /**
  * Provides a unicode stream of characters to the HtmlTokenizer.
@@ -87,7 +78,7 @@ class HtmlInputStream {
    * for use by html5lib.
    *
    * [source] can be either a [String] or a [List<int>] containing the raw
-   * bytes, or a file if [ioSupport] is initialized.
+   * bytes, or a file if [consoleSupport] is initialized.
    *
    * The optional encoding parameter must be a string that indicates
    * the encoding.  If specified, that encoding will be used,
@@ -112,7 +103,7 @@ class HtmlInputStream {
     } else {
       // TODO(jmesserly): it's unfortunate we need to read all bytes in advance,
       // but it's necessary because of how the UTF decoders work.
-      rawBytes = ioSupport.bytesFromFile(source);
+      rawBytes = consoleSupport.bytesFromFile(source);
 
       if (rawBytes == null) {
         // TODO(jmesserly): we should accept some kind of stream API too.
