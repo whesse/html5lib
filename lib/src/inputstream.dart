@@ -1,31 +1,22 @@
 library inputstream;
 
 import 'dart:utf';
-import 'package:html5lib/dom_parsing.dart'; // show SourceFileInfo;
+import 'package:html5lib/dom_parsing.dart' show SourceFileInfo;
 import 'char_encodings.dart';
 import 'constants.dart';
 import 'utils.dart';
 import 'encoding_parser.dart';
 
 /** Hooks to call into dart:io without directly referencing it. */
-class IoSupport {
+class ConsoleSupport {
   List<int> bytesFromFile(source) => null;
 }
 
 // TODO(jmesserly): use lazy init here when supported.
-IoSupport _ioSupport;
-
-IoSupport get ioSupport {
-  if (_ioSupport == null) _ioSupport = new IoSupport();
-  return _ioSupport;
-}
-
-set ioSupport(IoSupport value) {
-  _ioSupport = value;
-}
+ConsoleSupport consoleSupport = new ConsoleSupport();
 
 /**
- * Provides a unicode stream of characters to the HTMLTokenizer.
+ * Provides a unicode stream of characters to the HtmlTokenizer.
  *
  * This class takes care of character encoding and removing or replacing
  * incorrect byte-sequences and also provides column and line tracking.
@@ -35,7 +26,7 @@ set ioSupport(IoSupport value) {
 // not a great design for us as it forces a lot of String <-> List of codepoint
 // conversions. It also adds a lot of complexity to this class because it forces
 // it to deal with chunks instead of one character at a time.
-class HTMLInputStream {
+class HtmlInputStream {
 
   const int _defaultChunkSize = 10240;
 
@@ -81,13 +72,13 @@ class HTMLInputStream {
   int _chunkStartOffset;
 
   /**
-   * Initialises the HTMLInputStream.
+   * Initialises the HtmlInputStream.
    *
-   * HTMLInputStream(source, [encoding]) -> Normalized stream from source
+   * HtmlInputStream(source, [encoding]) -> Normalized stream from source
    * for use by html5lib.
    *
    * [source] can be either a [String] or a [List<int>] containing the raw
-   * bytes, or a file if [ioSupport] is initialized.
+   * bytes, or a file if [consoleSupport] is initialized.
    *
    * The optional encoding parameter must be a string that indicates
    * the encoding.  If specified, that encoding will be used,
@@ -96,7 +87,7 @@ class HTMLInputStream {
    *
    * [parseMeta] - Look for a <meta> element containing encoding information
    */
-  HTMLInputStream(source, [String encoding, bool parseMeta = true,
+  HtmlInputStream(source, [String encoding, bool parseMeta = true,
         this.generateSpans = false])
       : charEncodingName = codecName(encoding),
         charsUntilRegEx = new Map() {
@@ -112,15 +103,15 @@ class HTMLInputStream {
     } else {
       // TODO(jmesserly): it's unfortunate we need to read all bytes in advance,
       // but it's necessary because of how the UTF decoders work.
-      rawBytes = ioSupport.bytesFromFile(source);
+      rawBytes = consoleSupport.bytesFromFile(source);
 
       if (rawBytes == null) {
         // TODO(jmesserly): we should accept some kind of stream API too.
         // Unfortunately dart:io InputStream is async only, which won't work.
-        throw new IllegalArgumentException("'source' must be a String or "
+        throw new ArgumentError("'source' must be a String or "
             "List<int> (of bytes). You can also pass a RandomAccessFile if you"
-            "import 'package:html5lib/parser_console' and call "
-            "initDartIOSupport.");
+            "`import 'package:html5lib/parser_console.dart'` and call "
+            "`useConsole()`.");
       }
     }
 

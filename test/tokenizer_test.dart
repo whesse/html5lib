@@ -61,7 +61,7 @@ class TokenizerTestParser {
         _lastStartTag = lastStartTag;
 
   List parse(stream) {
-    var tokenizer = new HTMLTokenizer(stream);
+    var tokenizer = new HtmlTokenizer(stream);
     outputTokens = [];
 
     // Note: we can't get a closure of the state method. However, we can

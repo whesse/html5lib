@@ -25,7 +25,7 @@ Usage
 
 Parsing HTML is easy!
 ```dart
-import 'package:html5lib/parser.dart'; // show parse
+import 'package:html5lib/parser.dart' show parse;
 import 'package:html5lib/dom.dart';
 
 main() {

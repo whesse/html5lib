@@ -12,7 +12,7 @@ class Pair<F, S> {
 
   const Pair(this.first, this.second);
 
-  int hashCode() => 37 * first.hashCode() + second.hashCode();
+  int get hashCode => 37 * first.hashCode + second.hashCode;
   bool operator ==(other) => other.first == first && other.second == second;
 }
 

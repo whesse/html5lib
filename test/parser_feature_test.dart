@@ -6,9 +6,12 @@ import 'package:unittest/unittest.dart';
 import 'package:unittest/vm_config.dart';
 import 'package:html5lib/dom.dart';
 import 'package:html5lib/parser.dart';
+import 'package:html5lib/parser_console.dart' as parser_console;
 import 'package:html5lib/src/constants.dart';
+import 'package:html5lib/src/inputstream.dart' as inputstream;
 import 'package:html5lib/src/tokenizer.dart';
 import 'package:html5lib/src/treebuilder.dart';
+import 'support.dart';
 
 main() {
   useVmConfiguration();
@@ -171,5 +174,15 @@ ParseError:4:3: Unexpected DOCTYPE. Ignored.
       expect(n.outerHTML, equals('<desc xlink:type="simple" '
         'xlink:href="http://example.com/logo.png" xlink:show="new"></desc>'));
     });
+  });
+
+  test('dart:io', () {
+    // ensure IO support is unregistered
+    expect(inputstream.consoleSupport,
+      new isInstanceOf<inputstream.ConsoleSupport>());
+    var file = new File('test/data/parser_feature/raw_file.html').openSync();
+    expect(() => parse(file), throwsA(new isInstanceOf<ArgumentError>()));
+    parser_console.useConsole();
+    expect(parse(file).body.innerHTML.trim(), equals('Hello world!'));
   });
 }

@@ -101,7 +101,7 @@ class TreeBuilder {
     document = new Document();
   }
 
-  bool elementInScope(target, [String variant]) {
+  bool elementInScope(target, {String variant}) {
     //If we pass a node in we match that. if we pass a string
     //match any node with that name
     bool exactNode = target is Node && target.nameTuple != null;

@@ -1,8 +1,8 @@
 library tokenizer;
 
 import 'dart:math';
-import 'package:html5lib/dom_parsing.dart'; // show SourceSpan
-import 'package:html5lib/parser.dart'; // show HtmlParser
+import 'package:html5lib/dom_parsing.dart' show SourceSpan;
+import 'package:html5lib/parser.dart' show HtmlParser;
 import 'constants.dart';
 import 'inputstream.dart';
 import 'token.dart';
@@ -32,10 +32,10 @@ Map<String, List<String>> get entitiesByFirstChar {
 /**
  * This class takes care of tokenizing HTML.
  */
-class HTMLTokenizer implements Iterator<Token> {
+class HtmlTokenizer implements Iterator<Token> {
   // TODO(jmesserly): a lot of these could be made private
 
-  final HTMLInputStream stream;
+  final HtmlInputStream stream;
 
   final bool lowercaseElementName;
 
@@ -64,11 +64,11 @@ class HTMLTokenizer implements Iterator<Token> {
 
   int _lastOffset;
 
-  HTMLTokenizer(doc,
+  HtmlTokenizer(doc,
       [String encoding, bool parseMeta = true,
       this.lowercaseElementName = true, this.lowercaseAttrName = true,
       bool generateSpans = false])
-      : stream = new HTMLInputStream(doc, encoding, parseMeta, generateSpans),
+      : stream = new HtmlInputStream(doc, encoding, parseMeta, generateSpans),
         tokenQueue = new Queue(),
         generateSpans = generateSpans {
     reset();
@@ -202,7 +202,7 @@ class HTMLTokenizer implements Iterator<Token> {
     return char;
   }
 
-  void consumeEntity([String allowedChar, bool fromAttribute = false]) {
+  void consumeEntity({String allowedChar, bool fromAttribute: false}) {
     // Initialise to the default output for when no entity is matched
     var output = "&";
 

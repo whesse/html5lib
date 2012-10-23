@@ -10,15 +10,15 @@ import 'parser.dart';
 import 'src/inputstream.dart' as inputstream;
 
 /**
- * Adds support to the [HtmlParser] to handle `dart:io`. In particular, it will
- * be able to handle [RandomAccessFile]s as input to the various [parse]
- * methods.
+ * Adds support to the [HtmlParser] for running on a console VM. In particular
+ * this means it will be able to handle `dart:io` and [RandomAccessFile]s as
+ * input to the various [parse] methods.
  */
-void initDartIoSupport() {
-  inputstream.ioSupport = new _IoSupport();
+void useConsole() {
+  inputstream.consoleSupport = new _ConsoleSupport();
 }
 
-class _IoSupport extends inputstream.IoSupport {
+class _ConsoleSupport extends inputstream.ConsoleSupport {
   List<int> bytesFromFile(source) {
     if (source is! RandomAccessFile) return null;
     return readAllBytesFromFile(source);
