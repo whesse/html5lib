@@ -11,7 +11,7 @@ import 'src/utils.dart';
 import 'dom_parsing.dart';
 
 // For doc comment only:
-import 'parser.dart' as parser; // show HtmlParser
+import 'parser.dart' show HtmlParser;
 
 // TODO(jmesserly): I added this class to replace the tuple usage in Python.
 // How does this fit in to dart:html?
@@ -36,10 +36,10 @@ class AttributeName implements Comparable {
     return prefix != null ? '$prefix:$name' : name;
   }
 
-  int hashCode() {
-    int h = prefix.hashCode();
-    h = 37 * (h & 0x1FFFFF) + name.hashCode();
-    h = 37 * (h & 0x1FFFFF) + namespace.hashCode();
+  int get hashCode {
+    int h = prefix.hashCode;
+    h = 37 * (h & 0x1FFFFF) + name.hashCode;
+    h = 37 * (h & 0x1FFFFF) + namespace.hashCode;
     return h & 0x3FFFFFFF;
   }
 
@@ -75,12 +75,6 @@ abstract class Node {
   static const int PROCESSING_INSTRUCTION_NODE = 7;
   static const int TEXT_NODE = 3;
 
-  // TODO(sigmund): remove when dartbug.com/5546 is fixed.
-  static int _lastHashCode = 0;
-
-  // TODO(sigmund): remove when dartbug.com/5546 is fixed.
-  final int _hashCode;
-
   // TODO(jmesserly): this should be on Element
   /** The tag name associated with the node. */
   final String tagName;
@@ -94,24 +88,20 @@ abstract class Node {
    * Note that attribute order needs to be stable for serialization, so we use a
    * LinkedHashMap. Each key is a [String] or [AttributeName].
    */
-  LinkedHashMap<Dynamic, String> attributes;
+  LinkedHashMap<Dynamic, String> attributes = new LinkedHashMap();
 
   /**
    * A list of child nodes of the current node. This must
    * include all elements but not necessarily other node types.
    */
-  final NodeList nodes;
+  final NodeList nodes = new NodeList._();
 
   /**
-   * The source span of this node, if it was created by the
-   * [parser.HtmlParser].
+   * The source span of this node, if it was created by the [HtmlParser].
    */
   SourceSpan span;
 
-  Node(this.tagName)
-      : attributes = new LinkedHashMap(),
-        nodes = new NodeList._(),
-        _hashCode = ++_lastHashCode {
+  Node(this.tagName) {
     nodes._parent = this;
   }
 
@@ -150,9 +140,6 @@ abstract class Node {
 
   String toString() => tagName;
 
-  // TODO(sigmund): remove when dartbug.com/5546 is fixed.
-  int hashCode() => _hashCode;
-
   Node remove() {
     // TODO(jmesserly): is parent == null an error?
     if (parent != null) {
@@ -170,7 +157,7 @@ abstract class Node {
     nodes.insertAt(nodes.indexOf(refNode), node);
   }
 
-  // TODO(jmesserly): should this be a property?
+  // TODO(jmesserly): should this be a property or remove?
   /** Return true if the node has children or text. */
   bool hasContent() => nodes.length > 0;
 
@@ -495,7 +482,7 @@ class NodeList extends ListProxy<Node> {
 
   void insertRange(int start, int rangeLength, [Node initialValue]) {
     if (initialValue == null) {
-      throw new IllegalArgumentException('cannot add null node.');
+      throw new ArgumentError('cannot add null node.');
     }
     if (rangeLength > 1) {
       throw new UnsupportedOperationException('cannot add the same node '

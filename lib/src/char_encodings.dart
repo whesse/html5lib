@@ -71,7 +71,7 @@ Iterable<int> decodeBytes(String encoding, List<int> bytes,
       return decodeUtf32leAsIterable(bytes, offset, length, true, replace);
 
     default:
-      throw new IllegalArgumentException('Encoding $encoding not supported');
+      throw new ArgumentError('Encoding $encoding not supported');
   }
 }
 
@@ -116,7 +116,7 @@ String decodeUtf16Surrogates(String input) {
 /**
  * Decodes [windows-1252](http://en.wikipedia.org/wiki/Windows-1252) bytes as an
  * iterable. Thus, the consumer can only convert as much of the input as needed.
- * Set the [replacementCharacter] to null to throw an [IllegalArgumentException]
+ * Set the [replacementCharacter] to null to throw an [ArgumentError]
  * rather than replace the bad value.
  */
 IterableWindows1252Decoder decodeWindows1252AsIterable(List<int> bytes,
@@ -152,7 +152,7 @@ class IterableWindows1252Decoder implements Iterable<int> {
  * The parameters can set an offset into a list of bytes (as int), limit the
  * length of the values to be decoded, and override the default Unicode
  * replacement character. Set the replacementCharacter to null to throw an
- * IllegalArgumentException rather than replace the bad value. The return value
+ * ArgumentError rather than replace the bad value. The return value
  * from this method can be used as an Iterable (e.g. in a for-loop).
  */
 class Windows1252Decoder implements Iterator<int> {
@@ -212,7 +212,7 @@ class Windows1252Decoder implements Iterator<int> {
       case 0x90:
       case 0x9D:
         if (replacementCodepoint == null) {
-          throw new IllegalArgumentException(
+          throw new ArgumentError(
               "Invalid windows-1252 code point $char at $_offset");
         }
         return replacementCodepoint;

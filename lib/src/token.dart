@@ -1,11 +1,11 @@
 /** This library contains token types used by the html5 tokenizer. */
 library token;
 
-import 'package:html5lib/dom_parsing.dart' as dom_parsing; // show SourceSpan
+import 'package:html5lib/dom_parsing.dart' show SourceSpan;
 
 /** An html5 token. */
 abstract class Token {
-  dom_parsing.SourceSpan span;
+  SourceSpan span;
 
   abstract int get kind;
 
@@ -34,15 +34,15 @@ class StartTagToken extends TagToken {
   /** The namespace. This is filled in later during tree building. */
   String namespace;
 
-  StartTagToken([String name, data, bool selfClosing = false,
-      this.selfClosingAcknowledged = false, this.namespace])
+  StartTagToken(String name, {data, bool selfClosing: false,
+      this.selfClosingAcknowledged: false, this.namespace})
       : super(name, data, selfClosing);
 
   int get kind => TokenKind.startTag;
 }
 
 class EndTagToken extends TagToken {
-  EndTagToken([String name, data, bool selfClosing = false])
+  EndTagToken(String name, {data, bool selfClosing: false})
       : super(name, data, selfClosing);
 
   int get kind => TokenKind.endTag;
@@ -57,7 +57,7 @@ class ParseErrorToken extends StringToken {
   /** Extra information that goes along with the error message. */
   Map messageParams;
 
-  ParseErrorToken([String data, this.messageParams]) : super(data);
+  ParseErrorToken(String data, {this.messageParams}) : super(data);
 
   int get kind => TokenKind.parseError;
 }
@@ -86,7 +86,7 @@ class DoctypeToken extends Token {
   String name;
   bool correct;
 
-  DoctypeToken([this.publicId, this.systemId, this.correct = false])
+  DoctypeToken({this.publicId, this.systemId, this.correct: false})
       : name = "";
 
   int get kind => TokenKind.doctype;

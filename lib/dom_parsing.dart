@@ -6,9 +6,8 @@
 library dom_parsing;
 
 import 'dart:math';
-import 'dart:utf' as utf; // show codepointsToString
+import 'dart:utf' show codepointsToString;
 import 'dom.dart';
-import 'src/constants.dart' as constants; // show NEWLINE
 
 
 /**
@@ -138,7 +137,7 @@ class SourceFileInfo {
           'if parser.generateSpans is true.');
     }
 
-    return utf.codepointsToString(_decodedChars.getRange(start, end - start));
+    return codepointsToString(_decodedChars.getRange(start, end - start));
   }
 
   /**

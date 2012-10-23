@@ -2,7 +2,7 @@
  * This library has a parser for HTML5 documents, that lets you parse HTML
  * easily from a script or server side application:
  *
- *     import 'package:html5lib/parser.dart'; // show parse
+ *     import 'package:html5lib/parser.dart' show parse;
  *     import 'package:html5lib/dom.dart';
  *     main() {
  *       var document = parse(
@@ -28,9 +28,9 @@ import 'dom_parsing.dart';
 
 /**
  * Parse the [input] html5 document into a tree. The [input] can be
- * a [String], [List<int>] of bytes or an [HTMLTokenizer].
+ * a [String], [List<int>] of bytes or an [HtmlTokenizer].
  *
- * If [input] is not a [HTMLTokenizer], you can optionally specify the file's
+ * If [input] is not a [HtmlTokenizer], you can optionally specify the file's
  * [encoding], which must be a string. If specified, that encoding will be used,
  * regardless of any BOM or later declaration (such as in a meta element).
  *
@@ -45,10 +45,10 @@ Document parse(doc, {String encoding, bool generateSpans: false}) {
 
 /**
  * Parse the [input] html5 document fragment into a tree. The [input] can be
- * a [String], [List<int>] of bytes or an [HTMLTokenizer]. The [container]
+ * a [String], [List<int>] of bytes or an [HtmlTokenizer]. The [container]
  * element can optionally be specified, otherwise it defaults to "div".
  *
- * If [input] is not a [HTMLTokenizer], you can optionally specify the file's
+ * If [input] is not a [HtmlTokenizer], you can optionally specify the file's
  * [encoding], which must be a string. If specified, that encoding will be used,
  * regardless of any BOM or later declaration (such as in a meta element).
  *
@@ -73,11 +73,11 @@ class HtmlParser {
   /** True to generate [SourceSpan]s for the [Node.span] property. */
   final bool generateSpans;
 
-  final HTMLTokenizer tokenizer;
+  final HtmlTokenizer tokenizer;
 
   final TreeBuilder tree;
 
-  final List<ParseError> errors;
+  final List<ParseError> errors = <ParseError>[];
 
   String container;
 
@@ -127,9 +127,9 @@ class HtmlParser {
 
   /**
    * Create a new HtmlParser and configure the [tree] builder and [strict] mode.
-   * The [input] can be a [String], [List<int>] of bytes or an [HTMLTokenizer].
+   * The [input] can be a [String], [List<int>] of bytes or an [HtmlTokenizer].
    *
-   * If [input] is not a [HTMLTokenizer], you can specify a few more arguments.
+   * If [input] is not a [HtmlTokenizer], you can specify a few more arguments.
    *
    * The [encoding] must be a string that indicates the encoding. If specified,
    * that encoding will be used, regardless of any BOM or later declaration
@@ -145,11 +145,10 @@ class HtmlParser {
   HtmlParser(input, {String encoding, bool parseMeta: true,
       bool lowercaseElementName: true, bool lowercaseAttrName: true,
       this.strict: false, bool generateSpans: false, TreeBuilder tree})
-      : errors = <ParseError>[],
-        generateSpans = generateSpans,
+      : generateSpans = generateSpans,
         tree = tree != null ? tree : new TreeBuilder(true),
-        tokenizer = (input is HTMLTokenizer ? input :
-          new HTMLTokenizer(input, encoding, parseMeta, lowercaseElementName,
+        tokenizer = (input is HtmlTokenizer ? input :
+          new HtmlTokenizer(input, encoding, parseMeta, lowercaseElementName,
             lowercaseAttrName, generateSpans)) {
 
     tokenizer.parser = this;
@@ -1724,7 +1723,7 @@ class InBodyPhase extends Phase {
     if (!tree.elementInScope(token.name, variant: variant)) {
       parser.parseError(token.span, "unexpected-end-tag", {"name": token.name});
     } else {
-      tree.generateImpliedEndTags(exclude: token.name);
+      tree.generateImpliedEndTags(token.name);
       if (tree.openElements.last().tagName != token.name) {
         parser.parseError(token.span, "end-tag-too-early", {"name": token.name});
       }
@@ -1922,7 +1921,7 @@ class InBodyPhase extends Phase {
   void endTagOther(EndTagToken token) {
     for (Node node in reversed(tree.openElements)) {
       if (node.tagName == token.name) {
-        tree.generateImpliedEndTags(exclude: token.name);
+        tree.generateImpliedEndTags(token.name);
         if (tree.openElements.last().tagName != token.name) {
           parser.parseError(token.span, "unexpected-end-tag",
               {"name": token.name});

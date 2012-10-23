@@ -1,7 +1,7 @@
 library inputstream;
 
 import 'dart:utf';
-import 'package:html5lib/dom_parsing.dart'; // show SourceFileInfo;
+import 'package:html5lib/dom_parsing.dart' show SourceFileInfo;
 import 'char_encodings.dart';
 import 'constants.dart';
 import 'utils.dart';
@@ -25,7 +25,7 @@ set ioSupport(IoSupport value) {
 }
 
 /**
- * Provides a unicode stream of characters to the HTMLTokenizer.
+ * Provides a unicode stream of characters to the HtmlTokenizer.
  *
  * This class takes care of character encoding and removing or replacing
  * incorrect byte-sequences and also provides column and line tracking.
@@ -35,7 +35,7 @@ set ioSupport(IoSupport value) {
 // not a great design for us as it forces a lot of String <-> List of codepoint
 // conversions. It also adds a lot of complexity to this class because it forces
 // it to deal with chunks instead of one character at a time.
-class HTMLInputStream {
+class HtmlInputStream {
 
   const int _defaultChunkSize = 10240;
 
@@ -81,9 +81,9 @@ class HTMLInputStream {
   int _chunkStartOffset;
 
   /**
-   * Initialises the HTMLInputStream.
+   * Initialises the HtmlInputStream.
    *
-   * HTMLInputStream(source, [encoding]) -> Normalized stream from source
+   * HtmlInputStream(source, [encoding]) -> Normalized stream from source
    * for use by html5lib.
    *
    * [source] can be either a [String] or a [List<int>] containing the raw
@@ -96,7 +96,7 @@ class HTMLInputStream {
    *
    * [parseMeta] - Look for a <meta> element containing encoding information
    */
-  HTMLInputStream(source, [String encoding, bool parseMeta = true,
+  HtmlInputStream(source, [String encoding, bool parseMeta = true,
         this.generateSpans = false])
       : charEncodingName = codecName(encoding),
         charsUntilRegEx = new Map() {
@@ -117,10 +117,10 @@ class HTMLInputStream {
       if (rawBytes == null) {
         // TODO(jmesserly): we should accept some kind of stream API too.
         // Unfortunately dart:io InputStream is async only, which won't work.
-        throw new IllegalArgumentException("'source' must be a String or "
+        throw new ArgumentError("'source' must be a String or "
             "List<int> (of bytes). You can also pass a RandomAccessFile if you"
-            "import 'package:html5lib/parser_console' and call "
-            "initDartIOSupport.");
+            "`import 'package:html5lib/parser_console.dart'` and call "
+            "`useConsole()`.");
       }
     }
 
