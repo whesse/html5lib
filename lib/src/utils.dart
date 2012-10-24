@@ -150,7 +150,7 @@ class _ReverseIterable implements Iterable, Iterator {
     }
   }
 
-  bool hasNext() => _index > 0;
+  bool get hasNext => _index > 0;
   next() {
     if (_index == 0) throw const NoMoreElementsException();
     return _list[--_index];

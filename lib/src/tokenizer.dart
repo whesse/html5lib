@@ -79,7 +79,7 @@ class HtmlTokenizer implements Iterator<Token> {
   TagToken get currentTagToken => currentToken;
   DoctypeToken get currentDoctypeToken => currentToken;
 
-  bool hasNext() {
+  bool get hasNext {
     if (stream.errors.length > 0) return true;
     if (tokenQueue.length > 0) return true;
     // Start processing. When EOF is reached state will return false;
@@ -98,7 +98,7 @@ class HtmlTokenizer implements Iterator<Token> {
    * is requested.
    */
    Token next() {
-    if (hasNext()) {
+    if (hasNext) {
       if (stream.errors.length > 0) {
         return new ParseErrorToken(stream.errors.removeFirst());
       }

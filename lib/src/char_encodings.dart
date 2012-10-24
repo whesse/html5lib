@@ -167,10 +167,10 @@ class Windows1252Decoder implements Iterator<int> {
         _offset = offset,
         _length = length == null ? bytes.length : length;
 
-  bool hasNext() => _offset < _length;
+  bool get hasNext => _offset < _length;
 
   int next() {
-    if (!hasNext()) throw const NoMoreElementsException();
+    if (!hasNext) throw const NoMoreElementsException();
     return _mapChar(_bytes[_offset++]);
   }
 

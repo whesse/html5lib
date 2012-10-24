@@ -303,7 +303,7 @@ class HtmlParser {
   }
 
   void mainLoop() {
-    while (tokenizer.hasNext()) {
+    while (tokenizer.hasNext) {
       var token = normalizeToken(tokenizer.next());
       var newToken = token;
       int type;

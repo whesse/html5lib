@@ -50,7 +50,7 @@ class ListProxy<E> implements List<E> {
   Collection<E> filter(bool f(E element)) => _list.filter(f);
   bool every(bool f(E element)) => _list.every(f);
   bool some(bool f(E element)) => _list.some(f);
-  bool isEmpty() => _list.isEmpty();
+  bool get isEmpty => _list.isEmpty;
   E last() => _list.last();
 
   set length(int value) { _list.length = value; }

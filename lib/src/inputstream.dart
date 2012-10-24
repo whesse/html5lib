@@ -257,7 +257,7 @@ class HtmlInputStream {
     }
 
     var charCodes = [];
-    for (int i = 0; i < readSize && dataStream.hasNext(); i++) {
+    for (int i = 0; i < readSize && dataStream.hasNext; i++) {
       int charCode = dataStream.next();
       charCodes.add(charCode);
       if (_decodedChars != null) _decodedChars.add(charCode);
