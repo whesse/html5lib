@@ -92,8 +92,8 @@ class DoctypeToken extends Token {
   int get kind => TokenKind.doctype;
 
   // TODO(jmesserly): remove. These are only here because of Token.data
-  String get data { throw const UnsupportedOperationException("data"); }
-  set data(value) { throw const UnsupportedOperationException("data"); }
+  String get data { throw new UnsupportedError("data"); }
+  set data(value) { throw new UnsupportedError("data"); }
 }
 
 

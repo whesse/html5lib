@@ -73,7 +73,7 @@ class TokenizerTestParser {
       tokenizer.currentToken = new StartTagToken(_lastStartTag);
     }
 
-    while (tokenizer.hasNext()) {
+    while (tokenizer.hasNext) {
       var token = tokenizer.next();
       switch (token.kind) {
         case TokenKind.characters:

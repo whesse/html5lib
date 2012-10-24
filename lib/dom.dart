@@ -485,8 +485,7 @@ class NodeList extends ListProxy<Node> {
       throw new ArgumentError('cannot add null node.');
     }
     if (rangeLength > 1) {
-      throw new UnsupportedOperationException('cannot add the same node '
-          'multiple times.');
+      throw new UnsupportedError('cannot add the same node multiple times.');
     }
     super.insertRange(start, 1, _setParent(initialValue));
   }

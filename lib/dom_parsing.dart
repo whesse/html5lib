@@ -133,7 +133,7 @@ class SourceFileInfo {
   /** Gets the text at the given offsets. */
   String getText(int start, [int end]) {
     if (_decodedChars == null) {
-      throw new UnsupportedOperationException('getText is only supported '
+      throw new UnsupportedError('getText is only supported '
           'if parser.generateSpans is true.');
     }
 
@@ -160,7 +160,7 @@ class SourceFileInfo {
     if (!includeText) return msg;
 
     if (_decodedChars == null) {
-      throw new UnsupportedOperationException('includeText is only supported '
+      throw new UnsupportedError('includeText is only supported '
           'if parser.generateSpans is true.');
     }
 
@@ -212,8 +212,7 @@ class TreeVisitor {
       case Node.DOCUMENT_FRAGMENT_NODE: return visitDocumentFragment(node);
       case Node.DOCUMENT_NODE: return visitDocument(node);
       case Node.DOCUMENT_TYPE_NODE: return visitDocumentType(node);
-      default: throw new UnsupportedOperationException(
-          'DOM node type ${node.nodeType}');
+      default: throw new UnsupportedError('DOM node type ${node.nodeType}');
     }
   }
 
