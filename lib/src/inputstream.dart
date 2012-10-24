@@ -52,7 +52,7 @@ class HtmlInputStream {
   Iterator<int> dataStream;
 
   /** Cache for charsUntil() */
-  Map<Pair, RegExp> charsUntilRegEx;
+  final charsUntilRegEx = new Map<Pair, RegExp>();
 
   Queue<String> errors;
 
@@ -89,8 +89,7 @@ class HtmlInputStream {
    */
   HtmlInputStream(source, [String encoding, bool parseMeta = true,
         this.generateSpans = false])
-      : charEncodingName = codecName(encoding),
-        charsUntilRegEx = new Map() {
+      : charEncodingName = codecName(encoding) {
 
     if (source is String) {
       // TODO(jmesserly): if the data is already a string, we should just use

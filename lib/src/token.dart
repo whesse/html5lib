@@ -83,11 +83,10 @@ class CommentToken extends StringToken {
 class DoctypeToken extends Token {
   String publicId;
   String systemId;
-  String name;
+  String name = "";
   bool correct;
 
-  DoctypeToken({this.publicId, this.systemId, this.correct: false})
-      : name = "";
+  DoctypeToken({this.publicId, this.systemId, this.correct: false});
 
   int get kind => TokenKind.doctype;
 

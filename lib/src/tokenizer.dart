@@ -12,16 +12,13 @@ import 'utils.dart';
 
 // TODO(jmesserly): we could use a better data structure here like a trie, if
 // we had it implemented in Dart.
-Map<String, List<String>> _entitiesByFirstChar;
-Map<String, List<String>> get entitiesByFirstChar {
-  if (_entitiesByFirstChar == null) {
-    _entitiesByFirstChar = {};
-    for (var k in entities.getKeys()) {
-      _entitiesByFirstChar.putIfAbsent(k[0], () => []).add(k);
-    }
+Map<String, List<String>> entitiesByFirstChar = (() {
+  var result = {};
+  for (var k in entities.getKeys()) {
+    result.putIfAbsent(k[0], () => []).add(k);
   }
-  return _entitiesByFirstChar;
-}
+  return result;
+})();
 
 // TODO(jmesserly): lots of ways to make this faster:
 // - use char codes everywhere instead of 1-char strings

@@ -2857,50 +2857,46 @@ final Map<String, String> entities = const {
   "zwnj;": "\u200c",
 };
 
-Map<int, String> _replacementCharacters;
-Map<int, String> get replacementCharacters {
-  if (_replacementCharacters == null) {
-    // TODO(jmesserly): fix this when Dart has literal maps with int keys.
-    var r = new Map<int, String>();
-    r[0x00] = "\uFFFD";
-    r[0x0d] = "\u000D";
-    r[0x80] = "\u20AC";
-    r[0x81] = "\u0081";
-    r[0x81] = "\u0081";
-    r[0x82] = "\u201A";
-    r[0x83] = "\u0192";
-    r[0x84] = "\u201E";
-    r[0x85] = "\u2026";
-    r[0x86] = "\u2020";
-    r[0x87] = "\u2021";
-    r[0x88] = "\u02C6";
-    r[0x89] = "\u2030";
-    r[0x8A] = "\u0160";
-    r[0x8B] = "\u2039";
-    r[0x8C] = "\u0152";
-    r[0x8D] = "\u008D";
-    r[0x8E] = "\u017D";
-    r[0x8F] = "\u008F";
-    r[0x90] = "\u0090";
-    r[0x91] = "\u2018";
-    r[0x92] = "\u2019";
-    r[0x93] = "\u201C";
-    r[0x94] = "\u201D";
-    r[0x95] = "\u2022";
-    r[0x96] = "\u2013";
-    r[0x97] = "\u2014";
-    r[0x98] = "\u02DC";
-    r[0x99] = "\u2122";
-    r[0x9A] = "\u0161";
-    r[0x9B] = "\u203A";
-    r[0x9C] = "\u0153";
-    r[0x9D] = "\u009D";
-    r[0x9E] = "\u017E";
-    r[0x9F] = "\u0178";
-    _replacementCharacters = r;
-  }
-  return _replacementCharacters;
-}
+Map<int, String> replacementCharacters = (() {
+  // TODO(jmesserly): fix this when Dart has literal maps with int keys.
+  var r = new Map<int, String>();
+  r[0x00] = "\uFFFD";
+  r[0x0d] = "\u000D";
+  r[0x80] = "\u20AC";
+  r[0x81] = "\u0081";
+  r[0x81] = "\u0081";
+  r[0x82] = "\u201A";
+  r[0x83] = "\u0192";
+  r[0x84] = "\u201E";
+  r[0x85] = "\u2026";
+  r[0x86] = "\u2020";
+  r[0x87] = "\u2021";
+  r[0x88] = "\u02C6";
+  r[0x89] = "\u2030";
+  r[0x8A] = "\u0160";
+  r[0x8B] = "\u2039";
+  r[0x8C] = "\u0152";
+  r[0x8D] = "\u008D";
+  r[0x8E] = "\u017D";
+  r[0x8F] = "\u008F";
+  r[0x90] = "\u0090";
+  r[0x91] = "\u2018";
+  r[0x92] = "\u2019";
+  r[0x93] = "\u201C";
+  r[0x94] = "\u201D";
+  r[0x95] = "\u2022";
+  r[0x96] = "\u2013";
+  r[0x97] = "\u2014";
+  r[0x98] = "\u02DC";
+  r[0x99] = "\u2122";
+  r[0x9A] = "\u0161";
+  r[0x9B] = "\u203A";
+  r[0x9C] = "\u0153";
+  r[0x9D] = "\u009D";
+  r[0x9E] = "\u017E";
+  r[0x9F] = "\u0178";
+  return r;
+})();
 
 final Map<String, String> encodings = const {
   '437': 'cp437',
@@ -3131,4 +3127,3 @@ final Map<String, String> encodings = const {
   'windows936': 'gbk',
   'x-x-big5': 'big5'
 };
-

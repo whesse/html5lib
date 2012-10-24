@@ -13,9 +13,9 @@ import 'utils.dart';
  */
 class EncodingBytes implements Iterable<String> {
   final String _bytes;
-  int _position;
+  int _position = -1;
 
-  EncodingBytes(String bytes) : _bytes = bytes, _position = -1;
+  EncodingBytes(this._bytes);
 
   Iterator<String> iterator() => _bytes.splitChars().iterator();
   int get length => _bytes.length;

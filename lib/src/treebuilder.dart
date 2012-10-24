@@ -67,9 +67,10 @@ class TreeBuilder {
 
   Document document;
 
-  final ListProxy<Node> openElements;
+  final ListProxy<Node> openElements = new ListProxy<Node>();
 
-  final ActiveFormattingElements activeFormattingElements;
+  final ActiveFormattingElements activeFormattingElements
+      = new ActiveFormattingElements();
 
   Node headPointer;
 
@@ -82,9 +83,7 @@ class TreeBuilder {
   bool insertFromTable;
 
   TreeBuilder(bool namespaceHTMLElements)
-      : defaultNamespace = namespaceHTMLElements ? Namespaces.html : null,
-        openElements = new ListProxy<Node>(),
-        activeFormattingElements = new ActiveFormattingElements() {
+      : defaultNamespace = namespaceHTMLElements ? Namespaces.html : null {
     reset();
   }
 
