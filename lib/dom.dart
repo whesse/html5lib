@@ -88,7 +88,7 @@ abstract class Node {
    * Note that attribute order needs to be stable for serialization, so we use a
    * LinkedHashMap. Each key is a [String] or [AttributeName].
    */
-  LinkedHashMap<Dynamic, String> attributes = new LinkedHashMap();
+  LinkedHashMap<dynamic, String> attributes = new LinkedHashMap();
 
   /**
    * A list of child nodes of the current node. This must

@@ -51,7 +51,7 @@ class ListProxy<E> implements List<E> {
   bool every(bool f(E element)) => _list.every(f);
   bool some(bool f(E element)) => _list.some(f);
   bool get isEmpty => _list.isEmpty;
-  E last() => _list.last();
+  E get last => _list.last;
 
   set length(int value) { _list.length = value; }
   operator []=(int index, E value) { _list[index] = value; }

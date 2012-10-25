@@ -145,10 +145,10 @@ List concatenateCharacterTokens(List tokens) {
   for (var token in tokens) {
     if (token.indexOf("ParseError") == -1 && token[0] == "Character") {
       if (outputTokens.length > 0 &&
-          outputTokens.last().indexOf("ParseError") == -1 &&
-          outputTokens.last()[0] == "Character") {
+          outputTokens.last.indexOf("ParseError") == -1 &&
+          outputTokens.last[0] == "Character") {
 
-        outputTokens.last()[1] = '${outputTokens.last()[1]}${token[1]}';
+        outputTokens.last[1] = '${outputTokens.last[1]}${token[1]}';
       } else {
         outputTokens.add(token);
       }
@@ -268,7 +268,7 @@ String camelCase(String s) {
   s = s.toLowerCase();
   var result = new StringBuffer();
   for (var match in const RegExp(r"\W+(\w)(\w+)").allMatches(s)) {
-    if (result.length == 0) result.add(s.substring(0, match.start()));
+    if (result.length == 0) result.add(s.substring(0, match.start));
     result.add(match.group(1).toUpperCase());
     result.add(match.group(2));
   }

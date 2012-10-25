@@ -60,7 +60,7 @@ class TestData implements Iterable<Map> {
     var lines = _text.split('\n');
     int numLines = lines.length;
     // Remove trailing newline to match Python
-    if (lines.last() == '') {
+    if (lines.last == '') {
       lines.removeLast();
     }
     for (var line in lines) {
@@ -162,7 +162,7 @@ class TestSerializer extends TreeVisitor {
     _str.add(node);
     if (node.attributes.length > 0) {
       indent += 2;
-      var keys = new List.from(node.attributes.getKeys());
+      var keys = new List.from(node.attributes.keys);
       keys.sort((x, y) => x.compareTo(y));
       for (var key in keys) {
         var v = node.attributes[key];

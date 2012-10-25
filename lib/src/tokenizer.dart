@@ -14,7 +14,7 @@ import 'utils.dart';
 // we had it implemented in Dart.
 Map<String, List<String>> entitiesByFirstChar = (() {
   var result = {};
-  for (var k in entities.getKeys()) {
+  for (var k in entities.keys) {
     result.putIfAbsent(k[0], () => []).add(k);
   }
   return result;
@@ -71,7 +71,7 @@ class HtmlTokenizer implements Iterator<Token> {
     reset();
   }
 
-  get lastData => currentToken.data.last();
+  get lastData => currentToken.data.last;
 
   TagToken get currentTagToken => currentToken;
   DoctypeToken get currentDoctypeToken => currentToken;
@@ -211,16 +211,16 @@ class HtmlTokenizer implements Iterator<Token> {
       // Read the next character to see if it's hex or decimal
       bool hex = false;
       charStack.add(stream.char());
-      if (charStack.last() == 'x' || charStack.last() == 'X') {
+      if (charStack.last == 'x' || charStack.last == 'X') {
         hex = true;
         charStack.add(stream.char());
       }
 
-      // charStack.last() should be the first digit
-      if (hex && isHexDigit(charStack.last()) ||
-          (!hex && isDigit(charStack.last()))) {
+      // charStack.last should be the first digit
+      if (hex && isHexDigit(charStack.last) ||
+          (!hex && isDigit(charStack.last))) {
         // At least one digit found, so consume the whole number
-        stream.unget(charStack.last());
+        stream.unget(charStack.last);
         output = consumeNumberEntity(hex);
       } else {
         // No digits found
@@ -237,7 +237,7 @@ class HtmlTokenizer implements Iterator<Token> {
       var filteredEntityList = entitiesByFirstChar[charStack[0]];
       if (filteredEntityList == null) filteredEntityList = const [];
 
-      while (charStack.last() !== EOF) {
+      while (charStack.last !== EOF) {
         var name = joinStr(charStack);
         filteredEntityList = filteredEntityList.filter(
             (e) => e.startsWith(name));
@@ -1211,14 +1211,14 @@ class HtmlTokenizer implements Iterator<Token> {
 
   bool markupDeclarationOpenState() {
     var charStack = [stream.char()];
-    if (charStack.last() == "-") {
+    if (charStack.last == "-") {
       charStack.add(stream.char());
-      if (charStack.last() == "-") {
+      if (charStack.last == "-") {
         currentToken = new CommentToken("");
         state = commentStartState;
         return true;
       }
-    } else if (charStack.last() == 'd' || charStack.last() == 'D') {
+    } else if (charStack.last == 'd' || charStack.last == 'D') {
       var matched = true;
       for (var expected in const ['oO', 'cC', 'tT', 'yY', 'pP', 'eE']) {
         var char = stream.char();
@@ -1233,14 +1233,14 @@ class HtmlTokenizer implements Iterator<Token> {
         state = doctypeState;
         return true;
       }
-    } else if (charStack.last() == "[" &&
+    } else if (charStack.last == "[" &&
         parser !== null && parser.tree.openElements.length > 0 &&
-        parser.tree.openElements.last().namespace
+        parser.tree.openElements.last.namespace
             != parser.tree.defaultNamespace) {
       var matched = true;
       for (var expected in const ["C", "D", "A", "T", "A", "["]) {
         charStack.add(stream.char());
-        if (charStack.last() != expected) {
+        if (charStack.last != expected) {
           matched = false;
           break;
         }

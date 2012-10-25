@@ -272,7 +272,7 @@ class HtmlParser {
   bool inForeignContent(Token token, int type) {
     if (tree.openElements.length == 0) return false;
 
-    var node = tree.openElements.last();
+    var node = tree.openElements.last;
     if (node.namespace == tree.defaultNamespace) return false;
 
     if (isMathMLTextIntegrationPoint(node)) {
@@ -465,7 +465,7 @@ class HtmlParser {
       "ychannelselector":"yChannelSelector",
       "zoomandpan":"zoomAndPan"
     };
-    for (var originalName in token.data.getKeys()) {
+    for (var originalName in token.data.keys) {
       var svgName = replacements[originalName];
       if (svgName != null) {
         token.data[svgName] = token.data.remove(originalName);
@@ -493,7 +493,7 @@ class HtmlParser {
       "xmlns:xlink": const AttributeName("xmlns", "xlink", Namespaces.xmlns)
     };
 
-    for (var originalName in token.data.getKeys()) {
+    for (var originalName in token.data.keys) {
       var foreignName = replacements[originalName];
       if (foreignName != null) {
         token.data[foreignName] = token.data.remove(originalName);
@@ -588,7 +588,7 @@ class Phase {
   Token processComment(CommentToken token) {
     // For most phases the following is correct. Where it's not it will be
     // overridden.
-    tree.insertComment(token, tree.openElements.last());
+    tree.insertComment(token, tree.openElements.last);
   }
 
   Token processDoctype(DoctypeToken token) {
@@ -862,7 +862,7 @@ class BeforeHeadPhase extends Phase {
 
   void startTagHead(StartTagToken token) {
     tree.insertElement(token);
-    tree.headPointer = tree.openElements.last();
+    tree.headPointer = tree.openElements.last;
     parser.phase = parser._inHeadPhase;
   }
 
@@ -1206,7 +1206,7 @@ class InBodyPhase extends Phase {
     } else if (node1.attributes.length != node2.attributes.length) {
       return false;
     } else {
-      for (var key in node1.attributes.getKeys()) {
+      for (var key in node1.attributes.keys) {
         if (node1.attributes[key] != node2.attributes[key]) {
           return false;
         }
@@ -1218,7 +1218,7 @@ class InBodyPhase extends Phase {
   // helper
   void addFormattingElement(token) {
     tree.insertElement(token);
-    var element = tree.openElements.last();
+    var element = tree.openElements.last;
 
     var matchingElements = [];
     for (Node node in reversed(tree.activeFormattingElements)) {
@@ -1231,7 +1231,7 @@ class InBodyPhase extends Phase {
 
     assert(matchingElements.length <= 3);
     if (matchingElements.length == 3) {
-      tree.activeFormattingElements.remove(matchingElements.last());
+      tree.activeFormattingElements.remove(matchingElements.last);
     }
     tree.activeFormattingElements.add(element);
   }
@@ -1258,7 +1258,7 @@ class InBodyPhase extends Phase {
     var data = token.data;
     dropNewline = false;
     if (data.startsWith("\n")) {
-      var lastOpen = tree.openElements.last();
+      var lastOpen = tree.openElements.last;
       if (const ["pre", "listing", "textarea"].contains(lastOpen.tagName)
           && !lastOpen.hasContent()) {
         data = data.substring(1);
@@ -1319,7 +1319,7 @@ class InBodyPhase extends Phase {
       if (tree.openElements[1].parent != null) {
         tree.openElements[1].parent.nodes.remove(tree.openElements[1]);
       }
-      while (tree.openElements.last().tagName != "html") {
+      while (tree.openElements.last.tagName != "html") {
         tree.openElements.removeLast();
       }
       tree.insertElement(token);
@@ -1351,7 +1351,7 @@ class InBodyPhase extends Phase {
         endTagP(new EndTagToken("p", data: {}));
       }
       tree.insertElement(token);
-      tree.formPointer = tree.openElements.last();
+      tree.formPointer = tree.openElements.last;
     }
   }
 
@@ -1392,7 +1392,7 @@ class InBodyPhase extends Phase {
     if (tree.elementInScope("p", variant: "button")) {
       endTagP(new EndTagToken("p", data: {}));
     }
-    if (headingElements.contains(tree.openElements.last().tagName)) {
+    if (headingElements.contains(tree.openElements.last.tagName)) {
       parser.parseError(token.span, "unexpected-start-tag",
           {"name": token.name});
       tree.openElements.removeLast();
@@ -1559,7 +1559,7 @@ class InBodyPhase extends Phase {
   }
 
   void startTagOpt(StartTagToken token) {
-    if (tree.openElements.last().tagName == "option") {
+    if (tree.openElements.last.tagName == "option") {
       parser.phase.processEndTag(new EndTagToken("option", data: {}));
     }
     tree.reconstructActiveFormattingElements();
@@ -1586,7 +1586,7 @@ class InBodyPhase extends Phase {
   void startTagRpRt(StartTagToken token) {
     if (tree.elementInScope("ruby")) {
       tree.generateImpliedEndTags();
-      var last = tree.openElements.last();
+      var last = tree.openElements.last;
       if (last.tagName != "ruby") {
         parser.parseError(last.span, 'undefined-error');
       }
@@ -1646,7 +1646,7 @@ class InBodyPhase extends Phase {
       endTagP(new EndTagToken("p", data: {}));
     } else {
       tree.generateImpliedEndTags("p");
-      if (tree.openElements.last().tagName != "p") {
+      if (tree.openElements.last.tagName != "p") {
         parser.parseError(token.span, "unexpected-end-tag", {"name": "p"});
       }
       popOpenElementsUntil("p");
@@ -1657,7 +1657,7 @@ class InBodyPhase extends Phase {
     if (!tree.elementInScope("body")) {
       parser.parseError(token.span, 'undefined-error');
       return;
-    } else if (tree.openElements.last().tagName != "body") {
+    } else if (tree.openElements.last.tagName != "body") {
       for (Node node in slice(tree.openElements, 2)) {
         switch (node.tagName) {
           case "dd": case "dt": case "li": case "optgroup": case "option":
@@ -1691,7 +1691,7 @@ class InBodyPhase extends Phase {
     if (inScope) {
       tree.generateImpliedEndTags();
     }
-    if (tree.openElements.last().tagName != token.name) {
+    if (tree.openElements.last.tagName != token.name) {
       parser.parseError(token.span, "end-tag-too-early", {"name": token.name});
     }
     if (inScope) {
@@ -1706,7 +1706,7 @@ class InBodyPhase extends Phase {
       parser.parseError(token.span, "unexpected-end-tag", {"name": "form"});
     } else {
       tree.generateImpliedEndTags();
-      if (tree.openElements.last() != node) {
+      if (tree.openElements.last != node) {
         parser.parseError(token.span, "end-tag-too-early-ignored", {"name": "form"});
       }
       tree.openElements.remove(node);
@@ -1724,7 +1724,7 @@ class InBodyPhase extends Phase {
       parser.parseError(token.span, "unexpected-end-tag", {"name": token.name});
     } else {
       tree.generateImpliedEndTags(token.name);
-      if (tree.openElements.last().tagName != token.name) {
+      if (tree.openElements.last.tagName != token.name) {
         parser.parseError(token.span, "end-tag-too-early", {"name": token.name});
       }
       popOpenElementsUntil(token.name);
@@ -1738,7 +1738,7 @@ class InBodyPhase extends Phase {
         break;
       }
     }
-    if (tree.openElements.last().tagName != token.name) {
+    if (tree.openElements.last.tagName != token.name) {
       parser.parseError(token.span, "end-tag-too-early", {"name": token.name});
     }
 
@@ -1782,7 +1782,7 @@ class InBodyPhase extends Phase {
       }
 
       // Step 1 paragraph 3
-      if (formattingElement != tree.openElements.last()) {
+      if (formattingElement != tree.openElements.last) {
         parser.parseError(token.span, "adoption-agency-1.3",
             {"name": token.name});
       }
@@ -1901,7 +1901,7 @@ class InBodyPhase extends Phase {
     if (tree.elementInScope(token.name)) {
       tree.generateImpliedEndTags();
     }
-    if (tree.openElements.last().tagName != token.name) {
+    if (tree.openElements.last.tagName != token.name) {
       parser.parseError(token.span, "end-tag-too-early", {"name": token.name});
     }
     if (tree.elementInScope(token.name)) {
@@ -1922,7 +1922,7 @@ class InBodyPhase extends Phase {
     for (Node node in reversed(tree.openElements)) {
       if (node.tagName == token.name) {
         tree.generateImpliedEndTags(token.name);
-        if (tree.openElements.last().tagName != token.name) {
+        if (tree.openElements.last.tagName != token.name) {
           parser.parseError(token.span, "unexpected-end-tag",
               {"name": token.name});
         }
@@ -1956,7 +1956,7 @@ class TextPhase extends Phase {
   }
 
   bool processEOF() {
-    var last = tree.openElements.last();
+    var last = tree.openElements.last;
     parser.parseError(last.span, "expected-named-closing-tag-but-got-eof",
         {'name': last.tagName});
     tree.openElements.removeLast();
@@ -2011,10 +2011,10 @@ class InTablePhase extends Phase {
   // helper methods
   void clearStackToTableContext() {
     // "clear the stack back to a table context"
-    while (tree.openElements.last().tagName != "table" &&
-           tree.openElements.last().tagName != "html") {
+    while (tree.openElements.last.tagName != "table" &&
+           tree.openElements.last.tagName != "html") {
       //parser.parseError(token.span, "unexpected-implied-end-tag-in-table",
-      //  {"name":  tree.openElements.last().name})
+      //  {"name":  tree.openElements.last.name})
       tree.openElements.removeLast();
     }
     // When the current node is <html> it's an innerHTML case
@@ -2022,7 +2022,7 @@ class InTablePhase extends Phase {
 
   // processing methods
   bool processEOF() {
-    var last = tree.openElements.last();
+    var last = tree.openElements.last;
     if (last.tagName != "html") {
       parser.parseError(last.span, "eof-in-table");
     } else {
@@ -2111,7 +2111,7 @@ class InTablePhase extends Phase {
     parser.parseError(token.span, "unexpected-form-in-table");
     if (tree.formPointer === null) {
       tree.insertElement(token);
-      tree.formPointer = tree.openElements.last();
+      tree.formPointer = tree.openElements.last;
       tree.openElements.removeLast();
     }
   }
@@ -2128,12 +2128,12 @@ class InTablePhase extends Phase {
   void endTagTable(EndTagToken token) {
     if (tree.elementInScope("table", variant: "table")) {
       tree.generateImpliedEndTags();
-      var last = tree.openElements.last();
+      var last = tree.openElements.last;
       if (last.tagName != "table") {
         parser.parseError(token.span, "end-tag-too-early-named",
             {"gotName": "table", "expectedName": last.tagName});
       }
-      while (tree.openElements.last().tagName != "table") {
+      while (tree.openElements.last.tagName != "table") {
         tree.openElements.removeLast();
       }
       tree.openElements.removeLast();
@@ -2176,7 +2176,7 @@ class InTableTextPhase extends Phase {
     if (parser.generateSpans) {
       span = new SourceSpan.union(
           characterTokens[0].span,
-          characterTokens.last().span);
+          characterTokens.last.span);
     }
 
     if (!allWhitespace(data)) {
@@ -2283,12 +2283,12 @@ class InCaptionPhase extends Phase {
     if (!ignoreEndTagCaption()) {
       // AT this code is quite similar to endTagTable in "InTable"
       tree.generateImpliedEndTags();
-      if (tree.openElements.last().tagName != "caption") {
+      if (tree.openElements.last.tagName != "caption") {
         parser.parseError(token.span, "expected-one-end-tag-but-got-another",
           {"gotName": "caption",
-           "expectedName": tree.openElements.last().tagName});
+           "expectedName": tree.openElements.last.tagName});
       }
-      while (tree.openElements.last().tagName != "caption") {
+      while (tree.openElements.last.tagName != "caption") {
         tree.openElements.removeLast();
       }
       tree.openElements.removeLast();
@@ -2342,7 +2342,7 @@ class InColumnGroupPhase extends Phase {
   }
 
   bool ignoreEndTagColgroup() {
-    return tree.openElements.last().tagName == "html";
+    return tree.openElements.last.tagName == "html";
   }
 
   bool processEOF() {
@@ -2427,12 +2427,12 @@ class InTableBodyPhase extends Phase {
   // helper methods
   void clearStackToTableBodyContext() {
     var tableTags = const ["tbody", "tfoot", "thead", "html"];
-    while (!tableTags.contains(tree.openElements.last().tagName)) {
+    while (!tableTags.contains(tree.openElements.last.tagName)) {
       //XXX parser.parseError(token.span, "unexpected-implied-end-tag-in-table",
-      //  {"name": tree.openElements.last().name})
+      //  {"name": tree.openElements.last.name})
       tree.openElements.removeLast();
     }
-    if (tree.openElements.last().tagName == "html") {
+    if (tree.openElements.last.tagName == "html") {
       assert(parser.innerHTMLMode);
     }
   }
@@ -2488,7 +2488,7 @@ class InTableBodyPhase extends Phase {
         tree.elementInScope("tfoot", variant: "table")) {
       clearStackToTableBodyContext();
       endTagTableRowGroup(
-          new EndTagToken(tree.openElements.last().tagName, data: {}));
+          new EndTagToken(tree.openElements.last.tagName, data: {}));
       return token;
     } else {
       // innerHTML case
@@ -2540,11 +2540,11 @@ class InRowPhase extends Phase {
   // helper methods (XXX unify this with other table helper methods)
   void clearStackToTableRowContext() {
     while (true) {
-      var last = tree.openElements.last();
+      var last = tree.openElements.last;
       if (last.tagName == "tr" || last.tagName == "html") break;
 
       parser.parseError(last.span, "unexpected-implied-end-tag-in-table-row",
-          {"name": tree.openElements.last().tagName});
+          {"name": tree.openElements.last.tagName});
       tree.openElements.removeLast();
     }
   }
@@ -2689,7 +2689,7 @@ class InCellPhase extends Phase {
   void endTagTableCell(EndTagToken token) {
     if (tree.elementInScope(token.name, variant: "table")) {
       tree.generateImpliedEndTags(token.name);
-      if (tree.openElements.last().tagName != token.name) {
+      if (tree.openElements.last.tagName != token.name) {
         parser.parseError(token.span, "unexpected-cell-end-tag",
             {"name": token.name});
         popOpenElementsUntil(token.name);
@@ -2749,7 +2749,7 @@ class InSelectPhase extends Phase {
 
   // http://www.whatwg.org/specs/web-apps/current-work///in-select
   bool processEOF() {
-    var last = tree.openElements.last();
+    var last = tree.openElements.last;
     if (last.tagName != "html") {
       parser.parseError(last.span, "eof-in-select");
     } else {
@@ -2767,17 +2767,17 @@ class InSelectPhase extends Phase {
 
   void startTagOption(StartTagToken token) {
     // We need to imply </option> if <option> is the current node.
-    if (tree.openElements.last().tagName == "option") {
+    if (tree.openElements.last.tagName == "option") {
       tree.openElements.removeLast();
     }
     tree.insertElement(token);
   }
 
   void startTagOptgroup(StartTagToken token) {
-    if (tree.openElements.last().tagName == "option") {
+    if (tree.openElements.last.tagName == "option") {
       tree.openElements.removeLast();
     }
-    if (tree.openElements.last().tagName == "optgroup") {
+    if (tree.openElements.last.tagName == "optgroup") {
       tree.openElements.removeLast();
     }
     tree.insertElement(token);
@@ -2808,7 +2808,7 @@ class InSelectPhase extends Phase {
   }
 
   void endTagOption(EndTagToken token) {
-    if (tree.openElements.last().tagName == "option") {
+    if (tree.openElements.last.tagName == "option") {
       tree.openElements.removeLast();
     } else {
       parser.parseError(token.span, "unexpected-end-tag-in-select",
@@ -2818,12 +2818,12 @@ class InSelectPhase extends Phase {
 
   void endTagOptgroup(EndTagToken token) {
     // </optgroup> implicitly closes <option>
-    if (tree.openElements.last().tagName == "option" &&
+    if (tree.openElements.last.tagName == "option" &&
       tree.openElements[tree.openElements.length - 2].tagName == "optgroup") {
       tree.openElements.removeLast();
     }
     // It also closes </optgroup>
-    if (tree.openElements.last().tagName == "optgroup") {
+    if (tree.openElements.last.tagName == "optgroup") {
       tree.openElements.removeLast();
     // But nothing else
     } else {
@@ -2976,7 +2976,7 @@ class InForeignContentPhase extends Phase {
   }
 
   Token processStartTag(StartTagToken token) {
-    var currentNode = tree.openElements.last();
+    var currentNode = tree.openElements.last;
     if (breakoutElements.contains(token.name) ||
         (token.name == "font" &&
          (token.data.containsKey("color") ||
@@ -2985,10 +2985,10 @@ class InForeignContentPhase extends Phase {
 
       parser.parseError(token.span,
           "unexpected-html-element-in-foreign-content", {'name': token.name});
-      while (tree.openElements.last().namespace !=
+      while (tree.openElements.last.namespace !=
            tree.defaultNamespace &&
-           !parser.isHTMLIntegrationPoint(tree.openElements.last()) &&
-           !parser.isMathMLTextIntegrationPoint(tree.openElements.last())) {
+           !parser.isHTMLIntegrationPoint(tree.openElements.last) &&
+           !parser.isMathMLTextIntegrationPoint(tree.openElements.last)) {
         tree.openElements.removeLast();
       }
       return token;
@@ -3012,7 +3012,7 @@ class InForeignContentPhase extends Phase {
 
   Token processEndTag(EndTagToken token) {
     var nodeIndex = tree.openElements.length - 1;
-    var node = tree.openElements.last();
+    var node = tree.openElements.last;
     if (node.tagName != token.name) {
       parser.parseError(token.span, "unexpected-end-tag", {"name": token.name});
     }
@@ -3124,7 +3124,7 @@ class InFramesetPhase extends Phase {
   }
 
   bool processEOF() {
-    var last = tree.openElements.last();
+    var last = tree.openElements.last;
     if (last.tagName != "html") {
       parser.parseError(last.span, "eof-in-frameset");
     } else {
@@ -3156,14 +3156,14 @@ class InFramesetPhase extends Phase {
   }
 
   void endTagFrameset(EndTagToken token) {
-    if (tree.openElements.last().tagName == "html") {
+    if (tree.openElements.last.tagName == "html") {
       // innerHTML case
       parser.parseError(token.span,
           "unexpected-frameset-in-frameset-innerhtml");
     } else {
       tree.openElements.removeLast();
     }
-    if (!parser.innerHTMLMode && tree.openElements.last().tagName != "frameset") {
+    if (!parser.innerHTMLMode && tree.openElements.last.tagName != "frameset") {
       // If we're not in innerHTML mode and the the current node is not a
       // "frameset" element (anymore) then switch.
       parser.phase = parser._afterFramesetPhase;

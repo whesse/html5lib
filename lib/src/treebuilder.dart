@@ -42,7 +42,7 @@ bool _mapEquals(Map a, Map b) {
   if (a.length != b.length) return false;
   if (a.length == 0) return true;
 
-  for (var keyA in a.getKeys()) {
+  for (var keyA in a.keys) {
     var valB = b[keyA];
     if (valB == null && !b.containsKey(keyA)) {
       return false;
@@ -194,7 +194,7 @@ class TreeBuilder {
       activeFormattingElements[i] = element;
 
       // Step 11
-      if (element == activeFormattingElements.last()) {
+      if (element == activeFormattingElements.last) {
         break;
       }
     }
@@ -239,7 +239,7 @@ class TreeBuilder {
 
   void insertComment(Token token, [Node parent]) {
     if (parent == null) {
-      parent = openElements.last();
+      parent = openElements.last;
     }
     parent.nodes.add(new Comment(token.data)..span = token.span);
   }
@@ -267,7 +267,7 @@ class TreeBuilder {
     var element = new Element(name, namespace)
         ..attributes = token.data
         ..span = token.span;
-    openElements.last().nodes.add(element);
+    openElements.last.nodes.add(element);
     openElements.add(element);
     return element;
   }
@@ -275,7 +275,7 @@ class TreeBuilder {
   Element insertElementTable(token) {
     /** Create an element and insert it into the tree */
     var element = createElement(token);
-    if (!tableInsertModeElements.contains(openElements.last().tagName)) {
+    if (!tableInsertModeElements.contains(openElements.last.tagName)) {
       return insertElementNormal(token);
     } else {
       // We should be in the InTable mode. This means we want to do
@@ -296,10 +296,10 @@ class TreeBuilder {
 
   /** Insert text data. */
   void insertText(String data, SourceSpan span) {
-    var parent = openElements.last();
+    var parent = openElements.last;
 
     if (!insertFromTable || insertFromTable &&
-        !tableInsertModeElements.contains(openElements.last().tagName)) {
+        !tableInsertModeElements.contains(openElements.last.tagName)) {
       _insertText(parent, data, span);
     } else {
       // We should be in the InTable mode. This means we want to do
@@ -317,8 +317,8 @@ class TreeBuilder {
       [Element refNode]) {
     var nodes = parent.nodes;
     if (refNode == null) {
-      if (nodes.length > 0 && nodes.last() is Text) {
-        Text last = nodes.last();
+      if (nodes.length > 0 && nodes.last is Text) {
+        Text last = nodes.last;
         last.value = '${last.value}$data';
       } else {
         nodes.add(new Text(data)..span = span);
@@ -367,7 +367,7 @@ class TreeBuilder {
   }
 
   void generateImpliedEndTags([String exclude]) {
-    var name = openElements.last().tagName;
+    var name = openElements.last.tagName;
     // XXX td, th and tr are not actually needed
     if (name != exclude && const ["dd", "dt", "li", "option", "optgroup", "p",
         "rp", "rt"].contains(name)) {

@@ -93,7 +93,7 @@ class HtmlInputStream {
 
     if (source is String) {
       // TODO(jmesserly): if the data is already a string, we should just use
-      // the source.charCodes() instead of wasting time encoding/decoding.
+      // the source.charCodes instead of wasting time encoding/decoding.
       rawBytes = encodeUtf8(source);
       charEncodingName = 'utf-8';
       charEncodingCertain = true;
@@ -306,7 +306,7 @@ class HtmlInputStream {
         hex = (hex.length == 1) ? "0$hex" : hex;
         return "\\u00$hex";
       }
-      var regex = joinStr(characters.charCodes().map(escapeChar));
+      var regex = joinStr(characters.charCodes.map(escapeChar));
       if (!opposite) {
         regex = "^${regex}";
       }
@@ -326,8 +326,8 @@ class HtmlInputStream {
           break;
         }
       } else {
-        assert(m.start() == 0);
-        var end = m.end();
+        assert(m.start == 0);
+        var end = m.end;
         // If not the whole chunk matched, return everything
         // up to the part that didn't match
         if (end != chunk.length - chunkOffset) {

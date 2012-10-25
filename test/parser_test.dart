@@ -83,7 +83,7 @@ void main() {
             errors = errors.split("\n");
           }
 
-          for (var treeCtor in treeTypes.getValues()) {
+          for (var treeCtor in treeTypes.values) {
             for (var namespaceHTMLElements in const [false, true]) {
               test(input, () {
                 runParserTest(testName, innerHTML, input, expected, errors,
