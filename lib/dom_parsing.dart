@@ -50,9 +50,9 @@ class SourceSpan implements Comparable {
   }
 
   String toMessageString(String filename, String message,
-        [bool includeText = true, bool useColors = false]) {
-    return file.getLocationMessage(filename, message, start, end, includeText,
-        useColors);
+        {bool useColors: false}) {
+    return file.getLocationMessage(filename, message, start, end,
+        useColors: useColors);
   }
 
   /** The 0-based line in the file where this span starts. */
@@ -96,9 +96,9 @@ class SourceSpan implements Comparable {
   }
 
   String getLocationMessage(String filename, String message,
-    [bool includeText = true, bool useColors = false]) {
+      {bool useColors: false}) {
     return file.getLocationMessage(filename, message, start, end,
-        includeText, useColors);
+        useColors: useColors);
   }
 }
 
@@ -145,7 +145,7 @@ class SourceFileInfo {
    * in the file.
    */
   String getLocationMessage(String filename, String message, int start,
-      [int end, bool includeText = true, bool useColors = false]) {
+      int end, {bool useColors: false}) {
 
     // Color constants used for generating messages.
     // TODO(jmesserly): it would be more useful to pass in an object that
@@ -157,11 +157,10 @@ class SourceFileInfo {
     var column = getColumn(line, start);
 
     var msg = '$filename:${line + 1}:${column + 1}: $message';
-    if (!includeText) return msg;
 
     if (_decodedChars == null) {
-      throw new UnsupportedError('includeText is only supported '
-          'if parser.generateSpans is true.');
+      // We don't have any text to include, so exit.
+      return msg;
     }
 
     var buf = new StringBuffer(msg);
@@ -176,7 +175,7 @@ class SourceFileInfo {
       textLine = '${textLine}\n';
     }
 
-    int toColumn = min(column + (end-start), textLine.length);
+    int toColumn = min(column + end - start, textLine.length);
     if (useColors) {
       buf.add(textLine.substring(0, column));
       buf.add(RED_COLOR);

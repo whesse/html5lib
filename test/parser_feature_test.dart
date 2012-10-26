@@ -185,4 +185,18 @@ ParseError:4:3: Unexpected DOCTYPE. Ignored.
     parser_console.useConsole();
     expect(parse(file).body.innerHTML.trim(), equals('Hello world!'));
   });
+
+  test('error printing without spans', () {
+    var parser = new HtmlParser('foo');
+    var doc = parser.parse();
+    expect(doc.body.innerHTML, equals('foo'));
+    expect(parser.errors.length, equals(1));
+    expect(parser.errors[0].errorCode,
+        equals('expected-doctype-but-got-chars'));
+    expect(parser.errors[0].message,
+        equals('Unexpected non-space characters. Expected DOCTYPE.'));
+    expect(parser.errors[0].toString(),
+        equals('ParseError:1:4: Unexpected non-space characters. '
+               'Expected DOCTYPE.'));
+  });
 }
