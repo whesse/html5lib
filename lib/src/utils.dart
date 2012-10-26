@@ -152,7 +152,7 @@ class _ReverseIterable implements Iterable, Iterator {
 
   bool get hasNext => _index > 0;
   next() {
-    if (_index == 0) throw const NoMoreElementsException();
+    if (_index == 0) throw new StateError("No more elements");
     return _list[--_index];
   }
 }

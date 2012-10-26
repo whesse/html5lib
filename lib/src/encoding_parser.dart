@@ -4,8 +4,8 @@ import 'constants.dart';
 import 'inputstream.dart';
 import 'utils.dart';
 
-// TODO(jmesserly): I converted StopIteration to NoMoreElementsException. Seems
-// strange to throw this from outside of an iterator though.
+// TODO(jmesserly): I converted StopIteration to StateError("No more elements").
+// Seems strange to throw this from outside of an iterator though.
 /**
  * String-like object with an associated position and various extra methods
  * If the position is ever greater than the string length then an exception is
@@ -23,7 +23,7 @@ class EncodingBytes implements Iterable<String> {
   String next() {
     var p = _position = _position + 1;
     if (p >= length) {
-      throw const NoMoreElementsException();
+      throw new StateError("No more elements");
     } else if (p < 0) {
       throw new IndexOutOfRangeException(p);
     }
@@ -33,7 +33,7 @@ class EncodingBytes implements Iterable<String> {
   String previous() {
     var p = _position;
     if (p >= length) {
-      throw const NoMoreElementsException();
+      throw new StateError("No more elements");
     } else if (p < 0) {
       throw new IndexOutOfRangeException(p);
     }
@@ -43,14 +43,14 @@ class EncodingBytes implements Iterable<String> {
 
   set position(int value) {
     if (_position >= length) {
-      throw const NoMoreElementsException();
+      throw new StateError("No more elements");
     }
     _position = value;
   }
 
   int get position {
     if (_position >= length) {
-      throw const NoMoreElementsException();
+      throw new StateError("No more elements");
     }
     if (_position >= 0) {
       return _position;
@@ -118,7 +118,7 @@ class EncodingBytes implements Iterable<String> {
       _position = newPosition + bytes.length - 1;
       return true;
     } else {
-      throw const NoMoreElementsException();
+      throw new StateError("No more elements");
     }
   }
 
@@ -156,7 +156,7 @@ class EncodingParser {
             try {
               keepParsing = dispatch[1]();
               break;
-            } on NoMoreElementsException catch (e) {
+            } on StateError catch (e) {
               keepParsing = false;
               break;
             }
@@ -166,7 +166,7 @@ class EncodingParser {
           break;
         }
       }
-    } on NoMoreElementsException catch (e) {
+    } on StateError catch (e) {
       // Catch this here to match behavior of Python's StopIteration
     }
     return encoding;
@@ -364,12 +364,12 @@ class ContentAttrParser {
         try {
           data.skipUntil(isWhitespace);
           return data.slice(oldPosition, data.position);
-        } on NoMoreElementsException catch (e) {
+        } on StateError catch (e) {
           //Return the whole remaining value
           return data.slice(oldPosition);
         }
       }
-    } on NoMoreElementsException catch (e) {
+    } on StateError catch (e) {
       return null;
     }
   }

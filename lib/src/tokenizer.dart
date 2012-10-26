@@ -101,7 +101,7 @@ class HtmlTokenizer implements Iterator<Token> {
       }
       return tokenQueue.removeFirst();
     } else {
-      throw const NoMoreElementsException();
+      throw new StateError("No more elements");
     }
   }
 
