@@ -109,7 +109,7 @@ abstract class Node {
    * Return a shallow copy of the current node i.e. a node with the same
    * name and attributes but with no parent or child nodes.
    */
-  abstract Node clone();
+  Node clone();
 
   String get id {
     var result = attributes['id'];
@@ -125,13 +125,13 @@ abstract class Node {
   // TODO(jmesserly): this is a workaround for http://dartbug.com/4754
   int get $dom_nodeType => nodeType;
 
-  abstract int get nodeType;
+  int get nodeType;
 
   String get outerHTML => _addOuterHtml(new StringBuffer()).toString();
 
   String get innerHTML => _addInnerHtml(new StringBuffer()).toString();
 
-  abstract StringBuffer _addOuterHtml(StringBuffer str);
+  StringBuffer _addOuterHtml(StringBuffer str);
 
   StringBuffer _addInnerHtml(StringBuffer str) {
     for (Node child in nodes) child._addOuterHtml(str);
