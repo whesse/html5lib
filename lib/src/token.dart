@@ -7,12 +7,12 @@ import 'package:html5lib/dom_parsing.dart' show SourceSpan;
 abstract class Token {
   SourceSpan span;
 
-  abstract int get kind;
+  int get kind;
 
   // TODO(jmesserly): it'd be nice to remove this and always use the ".data"
   // on the particular token type, since they store different kinds of data.
-  abstract get data;
-  abstract set data(value);
+  get data;
+  set data(value);
 }
 
 abstract class TagToken extends Token {
