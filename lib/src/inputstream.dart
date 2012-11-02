@@ -21,15 +21,7 @@ ConsoleSupport consoleSupport = new ConsoleSupport();
  * This class takes care of character encoding and removing or replacing
  * incorrect byte-sequences and also provides column and line tracking.
  */
-// TODO(jmesserly): fix the design of this class. The original Python html5lib
-// was optimized around using RegExp to scan for character patterns. This is
-// not a great design for us as it forces a lot of String <-> List of codepoint
-// conversions. It also adds a lot of complexity to this class because it forces
-// it to deal with chunks instead of one character at a time.
 class HtmlInputStream {
-
-  const int _defaultChunkSize = 10240;
-
   /**
    * Number of bytes to use when looking for a meta element with
    * encoding information.
@@ -37,7 +29,7 @@ class HtmlInputStream {
   const int numBytesMeta = 512;
 
   /** Encoding to use if no other information can be found. */
-  const String defaultEncoding = "windows-1252";
+  const String defaultEncoding = 'windows-1252';
 
   /** The name of the character encoding. */
   String charEncodingName;
@@ -47,29 +39,20 @@ class HtmlInputStream {
 
   final bool generateSpans;
 
-  List<int> rawBytes;
+  List<int> _rawBytes;
 
-  Iterator<int> dataStream;
-
-  /** Cache for charsUntil() */
-  final charsUntilRegEx = new Map<Pair, RegExp>();
+  /** Raw UTF-16 codes, used if a Dart String is passed in. */
+  Iterable<int> _rawChars;
 
   Queue<String> errors;
-
-  String chunk;
-
-  int chunkOffset;
-
-  /** Deals with CR LF and surrogates split over chunk boundaries */
-  String _bufferedCharacter;
 
   SourceFileInfo fileInfo;
 
   List<int> _lineStarts;
 
-  List<int> _decodedChars;
+  List<int> _chars;
 
-  int _chunkStartOffset;
+  int _offset;
 
   /**
    * Initialises the HtmlInputStream.
@@ -92,19 +75,17 @@ class HtmlInputStream {
       : charEncodingName = codecName(encoding) {
 
     if (source is String) {
-      // TODO(jmesserly): if the data is already a string, we should just use
-      // the source.charCodes instead of wasting time encoding/decoding.
-      rawBytes = encodeUtf8(source);
+      _rawChars = toCodepoints(source);
       charEncodingName = 'utf-8';
       charEncodingCertain = true;
     } else if (source is List<int>) {
-      rawBytes = source;
+      _rawBytes = source;
     } else {
       // TODO(jmesserly): it's unfortunate we need to read all bytes in advance,
       // but it's necessary because of how the UTF decoders work.
-      rawBytes = consoleSupport.bytesFromFile(source);
+      _rawBytes = consoleSupport.bytesFromFile(source);
 
-      if (rawBytes == null) {
+      if (_rawBytes == null) {
         // TODO(jmesserly): we should accept some kind of stream API too.
         // Unfortunately dart:io InputStream is async only, which won't work.
         throw new ArgumentError("'source' must be a String or "
@@ -123,22 +104,40 @@ class HtmlInputStream {
   }
 
   void reset() {
-    dataStream = null;
-    chunk = "";
-    chunkOffset = 0;
     errors = new Queue<String>();
-    _bufferedCharacter = null;
 
+    _offset = 0;
     _lineStarts = <int>[0];
+    _chars = <int>[];
 
-    // TODO(jmesserly): maybe this should be a separate flag?
-    // It seems possible you could want SourceSpans without keeping the source
-    // text around in memory like _decodedChars does.
-    if (generateSpans) {
-      _decodedChars = <int>[];
+    if (_rawChars == null) {
+      _rawChars = decodeBytes(charEncodingName, _rawBytes);
     }
-    _chunkStartOffset = 0;
-    fileInfo = new SourceFileInfo(_lineStarts, _decodedChars);
+
+    bool skipNewline = false;
+    for (var c in _rawChars) {
+      if (skipNewline) {
+        skipNewline = false;
+        if (c == NEWLINE) continue;
+      }
+
+      if (invalidUnicode(c)) errors.add('invalid-codepoint');
+
+      if (0xD800 <= c && c <= 0xDFFF) {
+        c = 0xFFFD;
+      } else if (c == RETURN) {
+        skipNewline = true;
+        c = NEWLINE;
+      }
+
+      _chars.add(c);
+      if (c == NEWLINE) _lineStarts.add(_chars.length);
+    }
+
+    // Free decoded characters if they aren't needed anymore.
+    if (_rawBytes != null) _rawChars = null;
+
+    fileInfo = new SourceFileInfo(_lineStarts, generateSpans ? _chars : null);
   }
 
 
@@ -161,26 +160,33 @@ class HtmlInputStream {
     }
 
     // Substitute for equivalent encodings:
-    if (charEncodingName.toLowerCase() == "iso-8859-1") {
-      charEncodingName = "windows-1252";
+    if (charEncodingName.toLowerCase() == 'iso-8859-1') {
+      charEncodingName = 'windows-1252';
     }
   }
 
   void changeEncoding(String newEncoding) {
+    if (_rawBytes == null) {
+      // We should never get here -- if encoding is certain we won't try to
+      // change it.
+      throw new StateError('cannot change encoding when parsing a String.');
+    }
+
     newEncoding = codecName(newEncoding);
-    if (const ["utf-16", "utf-16-be", "utf-16-le"].contains(newEncoding)) {
-      newEncoding = "utf-8";
+    if (const ['utf-16', 'utf-16-be', 'utf-16-le'].contains(newEncoding)) {
+      newEncoding = 'utf-8';
     }
     if (newEncoding === null) {
       return;
     } else if (newEncoding == charEncodingName) {
       charEncodingCertain = true;
     } else {
-      reset();
       charEncodingName = newEncoding;
       charEncodingCertain = true;
+      _rawChars = null;
+      reset();
       throw new ReparseException(
-          "Encoding changed from $charEncodingName to $newEncoding");
+          'Encoding changed from $charEncodingName to $newEncoding');
     }
   }
 
@@ -191,15 +197,15 @@ class HtmlInputStream {
    */
   String detectBOM() {
     // Try detecting the BOM using bytes from the string
-    if (hasUtf8Bom(rawBytes)) {
+    if (hasUtf8Bom(_rawBytes)) {
       return 'utf-8';
     }
     // Note: we don't need to remember whether it was big or little endian
     // because the decoder will do that later. It will also eat the BOM for us.
-    if (hasUtf16Bom(rawBytes)) {
+    if (hasUtf16Bom(_rawBytes)) {
       return 'utf-16';
     }
-    if (hasUtf32Bom(rawBytes)) {
+    if (hasUtf32Bom(_rawBytes)) {
       return 'utf-32';
     }
     return null;
@@ -207,11 +213,11 @@ class HtmlInputStream {
 
   /** Report the encoding declared by the meta element. */
   String detectEncodingMeta() {
-    var parser = new EncodingParser(slice(rawBytes, 0, numBytesMeta));
+    var parser = new EncodingParser(slice(_rawBytes, 0, numBytesMeta));
     var encoding = parser.getEncoding();
 
-    if (const ["utf-16", "utf-16-be", "utf-16-le"].contains(encoding)) {
-      encoding = "utf-8";
+    if (const ['utf-16', 'utf-16-be', 'utf-16-le'].contains(encoding)) {
+      encoding = 'utf-8';
     }
 
     return encoding;
@@ -221,73 +227,20 @@ class HtmlInputStream {
    * Returns the current offset in the stream, i.e. the number of codepoints
    * since the start of the file.
    */
-  int get position => chunkOffset + _chunkStartOffset;
+  int get position => _offset;
 
   /**
    * Read one character from the stream or queue if available. Return
    * EOF when EOF is reached.
    */
   String char() {
-    // Read a new chunk from the input stream if necessary
-    if (chunkOffset >= chunk.length) {
-      if (!readChunk()) {
-        return EOF;
-      }
-    }
-    return chunk[chunkOffset++];
+    if (_offset >= _chars.length) return EOF;
+    return new String.fromCharCodes([_chars[_offset++]]);
   }
 
-
-  // TODO(jmesserly): fix the performance of this method. Lots of things would
-  // be better dealt with in the tokenizer. At the very least we should try to
-  // avoid so many allocations...
-  bool readChunk([int readSize]) {
-    if (readSize === null) {
-      readSize = _defaultChunkSize;
-    }
-
-    _chunkStartOffset += chunk.length;
-    chunk = "";
-    chunkOffset = 0;
-
-    if (dataStream == null) {
-      // perform the initial decode
-      dataStream = decodeBytes(charEncodingName, rawBytes).iterator();
-    }
-
-    var charCodes = [];
-    for (int i = 0; i < readSize && dataStream.hasNext; i++) {
-      int charCode = dataStream.next();
-      charCodes.add(charCode);
-      if (_decodedChars != null) _decodedChars.add(charCode);
-      if (charCode == NEWLINE) {
-        _lineStarts.add(_chunkStartOffset + charCodes.length);
-      }
-    }
-    var data = codepointsToString(charCodes);
-
-    // Deal with CR LF and surrogates broken across chunks
-    if (_bufferedCharacter != null) {
-      data = '${_bufferedCharacter}${data}';
-      _bufferedCharacter = null;
-    } else if (data.length == 0) {
-      // We have no more data, bye-bye stream
-      return false;
-    }
-
-    if (data.length > 1) {
-      var lastv = data.charCodeAt(data.length - 1);
-      if (lastv == 0x0D || 0xD800 <= lastv && lastv <= 0xDBFF) {
-        _bufferedCharacter = data[data.length - 1];
-        data = data.substring(0, data.length - 1);
-      }
-    }
-
-    // Replace invalid characters
-    // Note U+0000 is dealt with in the tokenizer
-    chunk = replaceCharacters(data);
-
-    return true;
+  String peekChar() {
+    if (_offset >= _chars.length) return EOF;
+    return new String.fromCharCodes([_chars[_offset]]);
   }
 
   /**
@@ -295,96 +248,22 @@ class HtmlInputStream {
    * including any character in 'characters' or EOF.
    */
   String charsUntil(String characters, [bool opposite = false]) {
-    // Use a cache of regexps to find the required characters
-    var regexpKey = new Pair(characters, opposite ? 'opposite' : '');
-    var chars = charsUntilRegEx[regexpKey];
-
-    if (chars == null) {
-      escapeChar(c) {
-        assert(c < 128);
-        var hex = c.toRadixString(16);
-        hex = (hex.length == 1) ? "0$hex" : hex;
-        return "\\u00$hex";
-      }
-      var regex = joinStr(characters.charCodes.map(escapeChar));
-      if (!opposite) {
-        regex = "^${regex}";
-      }
-      chars = charsUntilRegEx[regexpKey] = new RegExp("^[${regex}]+");
+    int start = _offset;
+    String c;
+    while ((c = peekChar()) != null && characters.contains(c) == opposite) {
+      _offset++;
     }
 
-    var rv = [];
-    while (true) {
-      // Find the longest matching prefix
-      // TODO(jmesserly): RegExp does not seem to offer a start offset?
-      var searchChunk = chunk.substring(chunkOffset);
-      var m = chars.firstMatch(searchChunk);
-      if (m === null) {
-        // If nothing matched, and it wasn't because we ran out of chunk,
-        // then stop
-        if (chunkOffset != chunk.length) {
-          break;
-        }
-      } else {
-        assert(m.start == 0);
-        var end = m.end;
-        // If not the whole chunk matched, return everything
-        // up to the part that didn't match
-        if (end != chunk.length - chunkOffset) {
-          rv.add(searchChunk.substring(0, end));
-          chunkOffset += end;
-          break;
-        }
-      }
-      // If the whole remainder of the chunk matched,
-      // use it all and read the next chunk
-      rv.add(searchChunk);
-      if (!readChunk()) {
-        // Reached EOF
-        break;
-      }
-    }
-    return joinStr(rv);
+    return new String.fromCharCodes(_chars.getRange(start, _offset - start));
   }
 
   void unget(String ch) {
     // Only one character is allowed to be ungotten at once - it must
     // be consumed again before any further call to unget
     if (ch != null) {
-      if (chunkOffset == 0) {
-        // unget is called quite rarely, so it's a good idea to do
-        // more work here if it saves a bit of work in the frequently
-        // called char and charsUntil.
-        // So, just prepend the ungotten character onto the current
-        // chunk:
-        chunk = '${ch}${chunk}';
-      } else {
-        chunkOffset -= 1;
-        assert(chunk[chunkOffset] == ch);
-      }
+      _offset--;
+      assert(peekChar() == ch);
     }
-  }
-
-  String replaceCharacters(String str) {
-    // TODO(jmesserly): it'd be nice not to create the array until we know we
-    // are replacing something. Also it'd be nice to set the initial capacity.
-    var result = <int>[];
-    for (int i = 0; i < str.length; i++) {
-      var c = str.charCodeAt(i);
-      if (invalidUnicode(c)) errors.add("invalid-codepoint");
-
-      if (0xD800 <= c && c <= 0xDFFF) {
-        c = 0xFFFD;
-      } else if (c == RETURN) {
-        int j = i + 1;
-        if (j < str.length && str.charCodeAt(j) == NEWLINE) {
-          i = j; // \r\n becomes \n
-        }
-        c = NEWLINE;
-      }
-      result.add(c);
-    }
-    return codepointsToString(result);
   }
 }
 

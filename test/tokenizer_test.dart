@@ -4,6 +4,7 @@ library tokenizer_test;
 import 'dart:io';
 import 'dart:json';
 import 'dart:mirrors';
+import 'dart:utf';
 import 'package:unittest/unittest.dart';
 import 'package:unittest/vm_config.dart';
 import 'package:html5lib/src/char_encodings.dart';
@@ -12,44 +13,6 @@ import 'package:html5lib/src/token.dart';
 import 'package:html5lib/src/tokenizer.dart';
 import 'package:html5lib/src/utils.dart';
 import 'support.dart';
-
-/**
- * This is like [JSON.parse], but it fixes unicode surrogate pairs in the JSON.
- *
- * Without this, the test "expects" incorrect results from the tokenizer.
- * Note: Python's json module decodes these correctly, so this might point at
- * a bug in Dart's [JSON.parse].
- */
-jsonParseUnicode(String input) => jsonFixSurrogatePairs(JSON.parse(input));
-
-// TODO(jmesserly): this should probably be handled by dart:json
-jsonFixSurrogatePairs(jsonObject) {
-  fixSurrogate(object) {
-    if (object is String) {
-      return decodeUtf16Surrogates(object);
-    } else if (object is List) {
-      List a = object;
-      for (int i = 0; i < a.length; i++) {
-        a[i] = fixSurrogate(a[i]);
-      }
-    } else if (object is Map) {
-      Map<String, Object> m = object;
-      m.forEach((key, value) {
-        var fixedKey = fixSurrogate(key);
-        var fixedValue = fixSurrogate(value);
-        if (fixedKey !== key) {
-          m.remove(key);
-          m[fixedKey] = fixedValue;
-        } else if (fixedValue !== value) {
-          m[fixedKey] = fixedValue;
-        }
-      });
-    }
-    return object;
-  }
-  return fixSurrogate(jsonObject);
-}
-
 
 class TokenizerTestParser {
   String _state;
@@ -60,8 +23,10 @@ class TokenizerTestParser {
       : _state = initialState,
         _lastStartTag = lastStartTag;
 
-  List parse(stream) {
-    var tokenizer = new HtmlTokenizer(stream);
+  List parse(String str) {
+    // Note: we need to pass bytes to the tokenizer if we want it to handle BOM.
+    var bytes = codepointsToUtf8(toCodepoints(str));
+    var tokenizer = new HtmlTokenizer(bytes, 'utf-8');
     outputTokens = [];
 
     // Note: we can't get a closure of the state method. However, we can
@@ -206,9 +171,9 @@ void expectTokensMatch(List expectedTokens, List receivedTokens,
     var receivedParseErrors = receivedTokens.filter((t) => t == "ParseError");
     var receivedNonErrors = receivedTokens.filter((t) => t != "ParseError");
 
-    expect(receivedNonErrors, equals(expectedNonErrors), message);
+    expect(receivedNonErrors, equals(expectedNonErrors), reason: message);
     if (!ignoreErrors) {
-      expect(receivedParseErrors, equals(expectedParseErrors), message);
+      expect(receivedParseErrors, equals(expectedParseErrors), reason: message);
     }
   }
 }
@@ -242,7 +207,7 @@ void runTokenizerTest(Map testInfo) {
 
 Map unescape(Map testInfo) {
   // Note: using JSON.parse to unescape the unicode characters in the string.
-  decode(inp) => jsonParseUnicode('"${inp}"');
+  decode(inp) => JSON.parse('"$inp"');
 
   testInfo["input"] = decode(testInfo["input"]);
   for (var token in testInfo["output"]) {
@@ -281,7 +246,7 @@ void main() {
     for (var path in files) {
 
       var text = new File(path).readAsTextSync();
-      var tests = jsonParseUnicode(text);
+      var tests = JSON.parse(text);
       var testName = new Path.fromNative(path).filename.replaceAll(".test","");
       var testList = tests['tests'];
       if (testList == null) continue;

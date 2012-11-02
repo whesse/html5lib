@@ -119,7 +119,7 @@ class SourceFileInfo {
   /** Gets the 0-based line in the file for this offset. */
   int getLine(int offset) {
     // TODO(jmesserly): Dart needs a binary search function we can use here.
-    for (int i = 0; i < _lineStarts.length; i++) {
+    for (int i = 1; i < _lineStarts.length; i++) {
       if (_lineStarts[i] > offset) return i - 1;
     }
     return _lineStarts.length - 1;
@@ -136,7 +136,7 @@ class SourceFileInfo {
       throw new UnsupportedError('getText is only supported '
           'if parser.generateSpans is true.');
     }
-
+    if (end == null) end = _decodedChars.length;
     return codepointsToString(_decodedChars.getRange(start, end - start));
   }
 
@@ -172,7 +172,7 @@ class SourceFileInfo {
       textLine = getText(_lineStarts[line], _lineStarts[line + 1]);
     } else {
       textLine = getText(_lineStarts[line]);
-      textLine = '${textLine}\n';
+      textLine = '$textLine\n';
     }
 
     int toColumn = min(column + end - start, textLine.length);

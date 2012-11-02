@@ -166,7 +166,7 @@ ParseError:4:3: Unexpected DOCTYPE. Ignored.
       ''');
       var n = doc.query('desc');
       var keys = n.attributes.keys;
-      expect(keys[0] is AttributeName);
+      expect(keys[0], new isInstanceOf<AttributeName>());
       expect(keys[0].prefix, equals('xlink'));
       expect(keys[0].namespace, equals('http://www.w3.org/1999/xlink'));
       expect(keys[0].name, equals('type'));

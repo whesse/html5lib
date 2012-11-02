@@ -76,19 +76,13 @@ Iterable<int> decodeBytes(String encoding, List<int> bytes,
 }
 
 
+// TODO(jmesserly): use dart:utf once http://dartbug.com/6476 is fixed.
 /**
- * Given a UCS-2 string which may contain UTF-16 surrogate pairs, converts to
- * a correctly encoded Dart string. If the [input] string does not contain
- * surrogate pairs, that string instance will be returned unmodified.
- *
- * This is useful for fixing strings returned by [JSON.parse], if the JSON
- * has UTF-16 encoded via surrogate pairs of characters. For example,
- * `"\ud835\udd04"` should translate to a one character string with the code
- * point `0x01d504`.
+ * Returns the code points for the [input]. This works like [String.charCodes]
+ * but it decodes UTF-16 surrogate pairs.
  */
-String decodeUtf16Surrogates(String input) {
-  // Note: don't allocate anything until we know we we need it.
-  List<int> newCodes = null;
+List<int> toCodepoints(String input) {
+  var newCodes = <int>[];
   for (int i = 0; i < input.length; i++) {
     var c = input.charCodeAt(i);
     if (0xD800 <= c && c <= 0xDBFF) {
@@ -96,20 +90,14 @@ String decodeUtf16Surrogates(String input) {
       if (next < input.length) {
         var d = input.charCodeAt(next);
         if (0xDC00 <= d && d <= 0xDFFF) {
-          if (newCodes == null) {
-            newCodes = <int>[];
-            for (int j = 0; j < i; j++) newCodes.add(input.charCodeAt(j));
-          }
           c = 0x10000 + ((c - 0xD800) << 10) + (d - 0xDC00);
           i = next;
         }
       }
     }
-    if (newCodes != null) newCodes.add(c);
+    newCodes.add(c);
   }
-
-  if (newCodes == null) return input;
-  return codepointsToString(newCodes);
+  return newCodes;
 }
 
 

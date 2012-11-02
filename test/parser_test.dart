@@ -52,11 +52,11 @@ void runParserTest(String groupName, String innerHTML, String input,
     expected = namespaceHtml(expected);
   }
 
-  expect(output, equals(expected),
+  expect(output, equals(expected), reason:
       "\n\nInput:\n$input\n\nExpected:\n$expected\n\nReceived:\n$output");
 
   if (checkParseErrors) {
-    expect(parser.errors.length, equals(errors.length),
+    expect(parser.errors.length, equals(errors.length), reason:
         "\n\nInput:\n$input\n\nExpected errors (${errors.length}):\n"
         "${Strings.join(errors, '\n')}\n\n"
         "Actual errors (${parser.errors.length}):\n"
