@@ -197,7 +197,7 @@ abstract class Node {
   String _typeSelector(String selectors) {
     selectors = selectors.trim();
     if (!_isTypeSelector(selectors)) {
-      throw new NotImplementedException('only type selectors are implemented');
+      throw new UnimplementedError('only type selectors are implemented');
     }
     return selectors;
   }

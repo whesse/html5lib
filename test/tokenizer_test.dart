@@ -232,7 +232,7 @@ Map unescape(Map testInfo) {
 String camelCase(String s) {
   s = s.toLowerCase();
   var result = new StringBuffer();
-  for (var match in const RegExp(r"\W+(\w)(\w+)").allMatches(s)) {
+  for (var match in new RegExp(r"\W+(\w)(\w+)").allMatches(s)) {
     if (result.length == 0) result.add(s.substring(0, match.start));
     result.add(match.group(1).toUpperCase());
     result.add(match.group(2));

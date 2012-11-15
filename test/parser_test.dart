@@ -19,7 +19,7 @@ String namespaceHtml(String expected) {
   // We can't do regex replace directly =\
   // final namespaceExpected = const RegExp(@"^(\s*)<(\S+)>", multiLine: true);
   // return expected.replaceAll(namespaceExpected, @"$1<html $2>");
-  final namespaceExpected = const RegExp(r"^(\|\s*)<(\S+)>");
+  final namespaceExpected = new RegExp(r"^(\|\s*)<(\S+)>");
   var lines =  expected.split("\n");
   for (int i = 0; i < lines.length; i++) {
     var match = namespaceExpected.firstMatch(lines[i]);
