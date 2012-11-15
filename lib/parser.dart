@@ -582,7 +582,7 @@ class Phase {
   Phase(HtmlParser parser) : parser = parser, tree = parser.tree;
 
   bool processEOF() {
-    throw const NotImplementedException();
+    throw new UnimplementedError();
   }
 
   Token processComment(CommentToken token) {
@@ -604,7 +604,7 @@ class Phase {
   }
 
   Token processStartTag(StartTagToken token) {
-    throw const NotImplementedException();
+    throw new UnimplementedError();
   }
 
   Token startTagHtml(StartTagToken token) {
@@ -620,7 +620,7 @@ class Phase {
   }
 
   Token processEndTag(EndTagToken token) {
-    throw const NotImplementedException();
+    throw new UnimplementedError();
   }
 
   /** Helper method for popping openElements. */
