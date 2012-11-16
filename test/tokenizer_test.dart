@@ -245,7 +245,7 @@ void main() {
   getDataFiles('tokenizer', (p) => p.endsWith('.test')).then((files) {
     for (var path in files) {
 
-      var text = new File(path).readAsTextSync();
+      var text = new File(path).readAsStringSync();
       var tests = JSON.parse(text);
       var testName = new Path.fromNative(path).filename.replaceAll(".test","");
       var testList = tests['tests'];
