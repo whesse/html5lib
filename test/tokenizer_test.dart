@@ -163,7 +163,7 @@ void expectTokensMatch(List expectedTokens, List receivedTokens,
   }
 
   if (!ignoreErrorOrder && !ignoreErrors) {
-    expect(receivedTokens, equals(expectedTokens), message);
+    expect(receivedTokens, equals(expectedTokens), reason: message);
   } else {
     // Sort the tokens into two groups; non-parse errors and parse errors
     var expectedParseErrors = expectedTokens.filter((t) => t == "ParseError");

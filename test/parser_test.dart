@@ -17,7 +17,7 @@ final checkParseErrors = false;
 String namespaceHtml(String expected) {
   // TODO(jmesserly): this is a workaround for http://dartbug.com/2979
   // We can't do regex replace directly =\
-  // final namespaceExpected = const RegExp(@"^(\s*)<(\S+)>", multiLine: true);
+  // final namespaceExpected = new RegExp(@"^(\s*)<(\S+)>", multiLine: true);
   // return expected.replaceAll(namespaceExpected, @"$1<html $2>");
   final namespaceExpected = new RegExp(r"^(\|\s*)<(\S+)>");
   var lines =  expected.split("\n");
