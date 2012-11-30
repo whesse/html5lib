@@ -2,8 +2,7 @@ name: html5lib
 author: "Dart Team <misc@dartlang.org>"
 homepage: https://github.com/dart-lang/html5lib
 description: A library for working with HTML documents.
-version: 0.2.1
+version: 0.2.1+1
 dependencies:
-  args: { sdk: args }
-  meta: { sdk: meta }
-  unittest: { sdk: unittest }
+  meta: any
+  unittest: any
