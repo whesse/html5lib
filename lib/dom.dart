@@ -145,9 +145,17 @@ abstract class Node {
 
   int get nodeType;
 
-  String get outerHTML => _addOuterHtml(new StringBuffer()).toString();
+  String get outerHTML {
+    var str = new StringBuffer();
+    _addOuterHtml(str);
+    return str.toString();
+  }
 
-  String get innerHTML => _addInnerHtml(new StringBuffer()).toString();
+  String get innerHTML {
+    var str = new StringBuffer();
+    _addInnerHtml(str);
+    return str.toString();
+  }
 
   set innerHTML(String value) {
     nodes.clear();
@@ -156,11 +164,10 @@ abstract class Node {
     nodes.addAll(parseFragment(value, container: tagName).nodes);
   }
 
-  StringBuffer _addOuterHtml(StringBuffer str);
+  void _addOuterHtml(StringBuffer str);
 
-  StringBuffer _addInnerHtml(StringBuffer str) {
+  void _addInnerHtml(StringBuffer str) {
     for (Node child in nodes) child._addOuterHtml(str);
-    return str;
   }
 
   String toString() => tagName;
@@ -314,7 +321,7 @@ class Document extends Node {
 
   String toString() => "#document";
 
-  StringBuffer _addOuterHtml(StringBuffer str) => _addInnerHtml(str);
+  void _addOuterHtml(StringBuffer str) => _addInnerHtml(str);
 
   Document clone() => new Document();
 }
@@ -351,7 +358,9 @@ class DocumentType extends Node {
   }
 
 
-  StringBuffer _addOuterHtml(StringBuffer str) => str.add(toString());
+  void _addOuterHtml(StringBuffer str) {
+    str.add(toString());
+  }
 
   DocumentType clone() => new DocumentType(tagName, publicId, systemId);
 }
@@ -366,7 +375,7 @@ class Text extends Node {
 
   String toString() => '"$value"';
 
-  StringBuffer _addOuterHtml(StringBuffer str) {
+  void _addOuterHtml(StringBuffer str) {
     // Don't escape text for certain elements, notably <script>.
     if (rcdataElements.contains(parent.tagName) ||
         parent.tagName == 'plaintext') {
@@ -448,7 +457,7 @@ class Element extends Node {
     return "<${Namespaces.getPrefix(namespace)} $tagName>";
   }
 
-  StringBuffer _addOuterHtml(StringBuffer str) {
+  void _addOuterHtml(StringBuffer str) {
     // http://www.whatwg.org/specs/web-apps/current-work/multipage/the-end.html#serializing-html-fragments
     // Element is the most complicated one.
     if (namespace == null ||
@@ -487,7 +496,6 @@ class Element extends Node {
     // void elements must not have an end tag
     // http://dev.w3.org/html5/markup/syntax.html#void-elements
     if (!isVoidElement(tagName)) str.add('</$tagName>');
-    return str;
   }
 
   Element clone() => new Element(tagName, namespace)
@@ -503,7 +511,9 @@ class Comment extends Node {
 
   String toString() => "<!-- $data -->";
 
-  StringBuffer _addOuterHtml(StringBuffer str) => str.add("<!--$data-->");
+  void _addOuterHtml(StringBuffer str) {
+    str.add("<!--$data-->");
+  }
 
   Comment clone() => new Comment(data);
 }
