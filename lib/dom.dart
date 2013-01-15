@@ -613,9 +613,8 @@ class FilteredElementList extends Collection<Element> implements List<Element> {
 
   // We can't memoize this, since it's possible that children will be messed
   // with externally to this class.
-  List<Element> get _filtered => _childNodes.filter((n) => n is Element);
-
-  void forEach(void f(Element element)) => _filtered.forEach(f);
+  List<Element> get _filtered =>
+      new List<Element>.from(_childNodes.where((n) => n is Element));
 
   void operator []=(int index, Element value) {
     this[index].replaceWith(value);
@@ -629,14 +628,14 @@ class FilteredElementList extends Collection<Element> implements List<Element> {
       throw new ArgumentError("Invalid list length");
     }
 
-    removeRange(newLength - 1, len - newLength);
+    removeRange(newLength, len - newLength);
   }
 
   void add(Element value) {
     _childNodes.add(value);
   }
 
-  void addAll(Collection<Element> collection) {
+  void addAll(Iterable<Element> collection) {
     collection.forEach(add);
   }
 
@@ -648,7 +647,7 @@ class FilteredElementList extends Collection<Element> implements List<Element> {
     return element is Element && _childNodes.contains(element);
   }
 
-  void sort([Comparator compare = Comparable.compare]) {
+  void sort([int compare(Element a, Element b)]) {
     // TODO(jacobr): should we impl?
     throw new UnimplementedError();
   }
@@ -681,12 +680,9 @@ class FilteredElementList extends Collection<Element> implements List<Element> {
 
   Element removeAt(int index) => this[index]..remove();
 
-  Collection map(f(Element element)) => _filtered.map(f);
-  Collection<Element> filter(bool f(Element element)) => _filtered.filter(f);
-  //bool some(bool f(Element element)) => _filtered.some(f);
-  int get length => _filtered.length;
+  Iterator<Element> get iterator => _filtered.iterator;
   Element operator [](int index) => _filtered[index];
-  Iterator<Element> iterator() => _filtered.iterator();
+
   List<Element> getRange(int start, int rangeLength) =>
     _filtered.getRange(start, rangeLength);
   int indexOf(Element element, [int start = 0]) =>
@@ -696,9 +692,5 @@ class FilteredElementList extends Collection<Element> implements List<Element> {
     if (start == null) start = length - 1;
     return _filtered.lastIndexOf(element, start);
   }
-
-  Element get last => _filtered.last;
-
-  Element get first => _filtered.first;
 }
 
