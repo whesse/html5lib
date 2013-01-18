@@ -33,6 +33,13 @@ class ListProxy<E> extends Collection<E> implements List<E> {
   // See http://code.google.com/p/dart/issues/detail?id=5375
   void insertAt(int index, E item) => insertRange(index, 1, item);
 
+  // Override from Iterable to fix performance
+  // Length and last become O(1) instead of O(N)
+  // The others are just different constant factor.
+  int get length => _list.length;
+  E get last => _list.last;
+  E get first => _list.first;
+  E get single => _list.single;
 
   // From Iterable
   Iterator<E> get iterator => _list.iterator;
