@@ -635,6 +635,10 @@ class FilteredElementList extends Collection<Element> implements List<Element> {
     _childNodes.add(value);
   }
 
+  void remove(Element value) {
+    _childNodes.remove(value);
+  }
+
   void addAll(Iterable<Element> collection) {
     collection.forEach(add);
   }
