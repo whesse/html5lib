@@ -230,7 +230,7 @@ abstract class Node {
   Element query(String selectors) => _queryType(_typeSelector(selectors));
 
   /**
-   * Retursn all descendant nodes matching the given selectors, using a
+   * Returns all descendant nodes matching the given selectors, using a
    * preorder traversal. NOTE: right now, this supports only a single type
    * selectors, e.g. `node.queryAll('div')`.
    */
