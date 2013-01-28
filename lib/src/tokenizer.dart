@@ -1,5 +1,6 @@
 library tokenizer;
 
+import 'dart:collection';
 import 'dart:math';
 import 'package:html5lib/dom_parsing.dart' show SourceSpan;
 import 'package:html5lib/parser.dart' show HtmlParser;

@@ -4,7 +4,9 @@
  */
 library dom;
 
+import 'dart:collection';
 import 'package:meta/meta.dart';
+
 import 'src/constants.dart';
 import 'src/list_proxy.dart';
 import 'src/treebuilder.dart';
@@ -542,18 +544,17 @@ class NodeList extends ListProxy<Node> {
 
   void addLast(Node value) => add(value);
 
-  void addAll(Collection<Node> collection) {
+  void addAll(Iterable<Node> collection) {
     // Note: we need to be careful if collection is another NodeList.
     // In particular:
     //   1. we need to copy the items before updating their parent pointers,
     //   2. we should update parent pointers in reverse order. That way they
     //      are removed from the original NodeList (if any) from the end, which
     //      is faster.
-    if (collection is NodeList) {
-      collection = new List<Node>.from(collection);
-    }
-    for (var node in reversed(collection)) _setParent(node);
-    super.addAll(collection);
+    var list = (collection is NodeList || collection is! List)
+        ? collection.toList() : collection;
+    for (var node in list.reversed) _setParent(node);
+    super.addAll(list);
   }
 
   Node removeLast() => super.removeLast()..parent = null;
@@ -635,10 +636,6 @@ class FilteredElementList extends Collection<Element> implements List<Element> {
     _childNodes.add(value);
   }
 
-  void remove(Element value) {
-    _childNodes.remove(value);
-  }
-
   void addAll(Iterable<Element> collection) {
     collection.forEach(add);
   }
@@ -650,6 +647,8 @@ class FilteredElementList extends Collection<Element> implements List<Element> {
   bool contains(Element element) {
     return element is Element && _childNodes.contains(element);
   }
+
+  List<Element> get reversed => _filtered.reversed;
 
   void sort([int compare(Element a, Element b)]) {
     // TODO(jacobr): should we impl?
@@ -680,6 +679,12 @@ class FilteredElementList extends Collection<Element> implements List<Element> {
       result.remove();
     }
     return result;
+  }
+
+  void remove(Element value) {
+    if (_childNodes.contains(value)) {
+      value.remove();
+    }
   }
 
   Element removeAt(int index) => this[index]..remove();

@@ -15,7 +15,9 @@
  */
 library parser;
 
+import 'dart:collection';
 import 'dart:math';
+
 import 'src/treebuilder.dart';
 import 'src/constants.dart';
 import 'src/encoding_parser.dart';
@@ -503,7 +505,7 @@ class HtmlParser {
   void resetInsertionMode() {
     // The name of this method is mostly historical. (It's also used in the
     // specification.)
-    for (Node node in reversed(tree.openElements)) {
+    for (Node node in tree.openElements.reversed) {
       var nodeName = node.tagName;
       bool last = node == tree.openElements[0];
       if (last) {
@@ -1052,7 +1054,7 @@ class AfterHeadPhase extends Phase {
       {"name": token.name});
     tree.openElements.add(tree.headPointer);
     parser._inHeadPhase.processStartTag(token);
-    for (Node node in reversed(tree.openElements)) {
+    for (Node node in tree.openElements.reversed) {
       if (node.tagName == "head") {
         tree.openElements.remove(node);
         break;
@@ -1220,7 +1222,7 @@ class InBodyPhase extends Phase {
     var element = tree.openElements.last;
 
     var matchingElements = [];
-    for (Node node in reversed(tree.activeFormattingElements)) {
+    for (Node node in tree.activeFormattingElements.reversed) {
       if (node == Marker) {
         break;
       } else if (isMatchingFormattingElement(node, element)) {
@@ -1237,7 +1239,7 @@ class InBodyPhase extends Phase {
 
   // the real deal
   bool processEOF() {
-    for (Node node in reversed(tree.openElements)) {
+    for (Node node in tree.openElements.reversed) {
       switch (node.tagName) {
         case "dd": case "dt": case "li": case "p": case "tbody": case "td":
         case "tfoot": case "th": case "thead": case "tr": case "body":
@@ -1361,7 +1363,7 @@ class InBodyPhase extends Phase {
                                 "dt": const ["dt", "dd"],
                                 "dd": const ["dt", "dd"]};
     var stopNames = stopNamesMap[token.name];
-    for (Node node in reversed(tree.openElements)) {
+    for (Node node in tree.openElements.reversed) {
       if (stopNames.contains(node.tagName)) {
         parser.phase.processEndTag(new EndTagToken(node.tagName, data: {}));
         break;
@@ -1918,7 +1920,7 @@ class InBodyPhase extends Phase {
   }
 
   void endTagOther(EndTagToken token) {
-    for (Node node in reversed(tree.openElements)) {
+    for (Node node in tree.openElements.reversed) {
       if (node.tagName == token.name) {
         tree.generateImpliedEndTags(token.name);
         if (tree.openElements.last.tagName != token.name) {
