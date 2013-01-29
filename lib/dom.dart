@@ -552,7 +552,7 @@ class NodeList extends ListProxy<Node> {
     //      are removed from the original NodeList (if any) from the end, which
     //      is faster.
     var list = (collection is NodeList || collection is! List)
-        ? collection.toList() : collection;
+        ? collection.toList() : collection as List;
     for (var node in list.reversed) _setParent(node);
     super.addAll(list);
   }
