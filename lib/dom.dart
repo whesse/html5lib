@@ -109,7 +109,7 @@ abstract class Node {
     nodes._parent = this;
   }
 
-  List<Element> get elements {
+  List<Element> get children {
     if (_elements == null) {
       _elements = new FilteredElementList(this);
     }
@@ -123,19 +123,6 @@ abstract class Node {
    */
   Node clone();
 
-  String get id {
-    var result = attributes['id'];
-    return result != null ? result : '';
-  }
-
-  set id(String value) {
-    if (value == null) {
-      attributes.remove('id');
-    } else {
-      attributes['id'] = value;
-    }
-  }
-
   String get namespace => null;
 
   // TODO(jmesserly): do we need this here?
@@ -147,19 +134,19 @@ abstract class Node {
 
   int get nodeType;
 
-  String get outerHTML {
+  String get outerHtml {
     var str = new StringBuffer();
     _addOuterHtml(str);
     return str.toString();
   }
 
-  String get innerHTML {
+  String get innerHtml {
     var str = new StringBuffer();
     _addInnerHtml(str);
     return str.toString();
   }
 
-  set innerHTML(String value) {
+  set innerHtml(String value) {
     nodes.clear();
     // TODO(jmesserly): should be able to get the same effect by adding the
     // fragment directly.
@@ -241,6 +228,10 @@ abstract class Node {
     _queryAllType(_typeSelector(selectors), results);
     return results;
   }
+
+  bool hasChildNodes() => !nodes.isEmpty;
+
+  bool contains(Node node) => nodes.contains(node);
 
   String _typeSelector(String selectors) {
     selectors = selectors.trim();
@@ -439,13 +430,13 @@ class Element extends Node {
 
     var fragment = parseFragment(html, container: parentTag);
     Element element;
-    if (fragment.elements.length == 1) {
-      element = fragment.elements[0];
-    } else if (parentTag == 'html' && fragment.elements.length == 2) {
+    if (fragment.children.length == 1) {
+      element = fragment.children[0];
+    } else if (parentTag == 'html' && fragment.children.length == 2) {
       // You'll always get a head and a body when starting from html.
-      element = fragment.elements[tag == 'head' ? 0 : 1];
+      element = fragment.children[tag == 'head' ? 0 : 1];
     } else {
-      throw new ArgumentError('HTML had ${fragment.elements.length} '
+      throw new ArgumentError('HTML had ${fragment.children.length} '
           'top level elements but 1 expected');
     }
     element.remove();
@@ -502,6 +493,19 @@ class Element extends Node {
 
   Element clone() => new Element(tagName, namespace)
       ..attributes = new LinkedHashMap.from(attributes);
+
+  String get id {
+    var result = attributes['id'];
+    return result != null ? result : '';
+  }
+
+  set id(String value) {
+    if (value == null) {
+      attributes.remove('id');
+    } else {
+      attributes['id'] = value;
+    }
+  }
 }
 
 class Comment extends Node {
@@ -552,7 +556,7 @@ class NodeList extends ListProxy<Node> {
     //      are removed from the original NodeList (if any) from the end, which
     //      is faster.
     var list = (collection is NodeList || collection is! List)
-        ? collection.toList() : collection;
+        ? collection.toList() : collection as List;
     for (var node in list.reversed) _setParent(node);
     super.addAll(list);
   }
