@@ -12,6 +12,7 @@ import 'dom_test.dart' as dom_test;
 import 'parser_feature_test.dart' as parser_feature_test;
 import 'parser_test.dart' as parser_test;
 import 'tokenizer_test.dart' as tokenizer_test;
+import 'dom_compat_test.dart' as dom_compat_test;
 
 main() {
   var args = new Options().arguments;
@@ -25,6 +26,7 @@ main() {
   }
 
   addGroup('dom_test.dart', dom_test.main);
+  addGroup('dom_compat_test.dart', dom_compat_test.main);
   addGroup('parser_feature_test.dart', parser_feature_test.main);
   addGroup('parser_test.dart', parser_test.main);
   addGroup('tokenizer_test.dart', tokenizer_test.main);
