@@ -123,19 +123,6 @@ abstract class Node {
    */
   Node clone();
 
-  String get id {
-    var result = attributes['id'];
-    return result != null ? result : '';
-  }
-
-  set id(String value) {
-    if (value == null) {
-      attributes.remove('id');
-    } else {
-      attributes['id'] = value;
-    }
-  }
-
   String get namespace => null;
 
   // TODO(jmesserly): do we need this here?
@@ -502,6 +489,19 @@ class Element extends Node {
 
   Element clone() => new Element(tagName, namespace)
       ..attributes = new LinkedHashMap.from(attributes);
+
+  String get id {
+    var result = attributes['id'];
+    return result != null ? result : '';
+  }
+
+  set id(String value) {
+    if (value == null) {
+      attributes.remove('id');
+    } else {
+      attributes['id'] = value;
+    }
+  }
 }
 
 class Comment extends Node {
