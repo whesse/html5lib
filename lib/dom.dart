@@ -109,7 +109,7 @@ abstract class Node {
     nodes._parent = this;
   }
 
-  List<Element> get elements {
+  List<Element> get children {
     if (_elements == null) {
       _elements = new FilteredElementList(this);
     }
@@ -439,13 +439,13 @@ class Element extends Node {
 
     var fragment = parseFragment(html, container: parentTag);
     Element element;
-    if (fragment.elements.length == 1) {
-      element = fragment.elements[0];
-    } else if (parentTag == 'html' && fragment.elements.length == 2) {
+    if (fragment.children.length == 1) {
+      element = fragment.children[0];
+    } else if (parentTag == 'html' && fragment.children.length == 2) {
       // You'll always get a head and a body when starting from html.
-      element = fragment.elements[tag == 'head' ? 0 : 1];
+      element = fragment.children[tag == 'head' ? 0 : 1];
     } else {
-      throw new ArgumentError('HTML had ${fragment.elements.length} '
+      throw new ArgumentError('HTML had ${fragment.children.length} '
           'top level elements but 1 expected');
     }
     element.remove();
