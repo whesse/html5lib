@@ -229,6 +229,10 @@ abstract class Node {
     return results;
   }
 
+  bool hasChildNodes() => !nodes.isEmpty;
+
+  bool contains(Node node) => nodes.contains(node);
+
   String _typeSelector(String selectors) {
     selectors = selectors.trim();
     if (!_isTypeSelector(selectors)) {
