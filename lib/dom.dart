@@ -147,19 +147,19 @@ abstract class Node {
 
   int get nodeType;
 
-  String get outerHTML {
+  String get outerHtml {
     var str = new StringBuffer();
     _addOuterHtml(str);
     return str.toString();
   }
 
-  String get innerHTML {
+  String get innerHtml {
     var str = new StringBuffer();
     _addInnerHtml(str);
     return str.toString();
   }
 
-  set innerHTML(String value) {
+  set innerHtml(String value) {
     nodes.clear();
     // TODO(jmesserly): should be able to get the same effect by adding the
     // fragment directly.

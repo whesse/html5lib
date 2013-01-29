@@ -275,7 +275,7 @@ class CodeMarkupVisitor extends TreeVisitor {
 
   visitText(Text node) {
     // TODO(jmesserly): would be nice to use _addOuterHtml directly.
-    _str.add(node.outerHTML);
+    _str.add(node.outerHtml);
   }
 
   visitElement(Element node) {
