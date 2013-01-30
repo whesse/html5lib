@@ -216,7 +216,8 @@ class TreeVisitor {
   }
 
   visitChildren(Node node) {
-    for (var child in node.nodes) visit(child);
+    // Allow for mutations (remove works) while iterating.
+    for (var child in node.nodes.toList()) visit(child);
   }
 
   /**
