@@ -3,7 +3,6 @@ library parser_test;
 
 import 'dart:io';
 import 'package:unittest/unittest.dart';
-import 'package:unittest/compact_vm_config.dart';
 import 'package:html5lib/dom.dart';
 import 'package:html5lib/parser.dart';
 import 'package:html5lib/parser_console.dart' as parser_console;
@@ -14,8 +13,6 @@ import 'package:html5lib/src/treebuilder.dart';
 import 'support.dart';
 
 main() {
-  useCompactVMConfiguration();
-
   test('doctype is cloneable', () {
     var doc = parse('<!DOCTYPE HTML>');
     DocumentType doctype = doc.nodes[0];

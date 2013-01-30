@@ -3,13 +3,10 @@ library dom_test;
 
 import 'dart:io';
 import 'package:unittest/unittest.dart';
-import 'package:unittest/compact_vm_config.dart';
 import 'package:html5lib/parser.dart';
 import 'package:html5lib/dom.dart';
 
 main() {
-  useCompactVMConfiguration();
-
   group('Node.query type selectors', () {
     test('x-foo', () {
       expect(parse('<x-foo>').body.query('x-foo'), isNotNull);
