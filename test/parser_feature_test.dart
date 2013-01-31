@@ -1,5 +1,5 @@
 /** Additional feature tests that aren't based on test data. */
-library parser_test;
+library parser_feature_test;
 
 import 'dart:io';
 import 'package:unittest/unittest.dart';
