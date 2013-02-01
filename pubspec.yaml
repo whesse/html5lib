@@ -6,3 +6,4 @@ version: 0.3.1+2
 dependencies:
   meta: any
   unittest: any
+  browser: '>=0.3.2'
