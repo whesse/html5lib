@@ -3,7 +3,7 @@ library treebuilder;
 
 import 'dart:collection';
 import 'package:html5lib/dom.dart';
-import 'package:html5lib/dom_parsing.dart';
+import 'package:source_maps/span.dart' show Span;
 import 'constants.dart';
 import 'list_proxy.dart';
 import 'token.dart';
@@ -296,7 +296,7 @@ class TreeBuilder {
   }
 
   /** Insert text data. */
-  void insertText(String data, SourceSpan span) {
+  void insertText(String data, Span span) {
     var parent = openElements.last;
 
     if (!insertFromTable || insertFromTable &&
@@ -314,7 +314,7 @@ class TreeBuilder {
    * Insert [data] as text in the current node, positioned before the
    * start of node [refNode] or to the end of the node's text.
    */
-  static void _insertText(Node parent, String data, SourceSpan span,
+  static void _insertText(Node parent, String data, Span span,
       [Element refNode]) {
     var nodes = parent.nodes;
     if (refNode == null) {

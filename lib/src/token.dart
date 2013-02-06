@@ -1,11 +1,11 @@
 /** This library contains token types used by the html5 tokenizer. */
 library token;
 
-import 'package:html5lib/dom_parsing.dart' show SourceSpan;
+import 'package:source_maps/span.dart' show Span;
 
 /** An html5 token. */
 abstract class Token {
-  SourceSpan span;
+  Span span;
 
   int get kind;
 

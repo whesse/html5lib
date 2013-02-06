@@ -2,7 +2,7 @@ library inputstream;
 
 import 'dart:collection';
 import 'dart:utf';
-import 'package:html5lib/dom_parsing.dart' show SourceFileInfo;
+import 'package:source_maps/span.dart' show File;
 import 'char_encodings.dart';
 import 'constants.dart';
 import 'utils.dart';
@@ -40,6 +40,9 @@ class HtmlInputStream {
 
   final bool generateSpans;
 
+  /** Location where the contents of the stream were found. */
+  final String sourceUrl;
+
   List<int> _rawBytes;
 
   /** Raw UTF-16 codes, used if a Dart String is passed in. */
@@ -47,7 +50,7 @@ class HtmlInputStream {
 
   Queue<String> errors;
 
-  SourceFileInfo fileInfo;
+  File fileInfo;
 
   List<int> _lineStarts;
 
@@ -72,7 +75,7 @@ class HtmlInputStream {
    * [parseMeta] - Look for a <meta> element containing encoding information
    */
   HtmlInputStream(source, [String encoding, bool parseMeta = true,
-        this.generateSpans = false])
+        this.generateSpans = false, this.sourceUrl])
       : charEncodingName = codecName(encoding) {
 
     if (source is String) {
@@ -138,7 +141,7 @@ class HtmlInputStream {
     // Free decoded characters if they aren't needed anymore.
     if (_rawBytes != null) _rawChars = null;
 
-    fileInfo = new SourceFileInfo(_lineStarts, generateSpans ? _chars : null);
+    fileInfo = new File(sourceUrl, _lineStarts, generateSpans ? _chars : null);
   }
 
 
