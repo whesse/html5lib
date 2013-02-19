@@ -2,11 +2,11 @@ name: html5lib
 author: "Dart Team <misc@dartlang.org>"
 homepage: https://github.com/dart-lang/html5lib
 description: A library for working with HTML documents.
-version: 0.3.2+1
+version: 0.3.3
 dependencies:
   browser: '>=0.3.2'
   meta: any
   unittest: any
-  source_maps: ">=0.3.1 <0.3.2"
+  source_maps: ">=0.3.2 <0.3.3"
 environment:
-  sdk: ">=0.3.5+1.r18300"
+  sdk: ">=0.3.7+5.r18669"
