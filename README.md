@@ -31,7 +31,7 @@ import 'package:html5lib/dom.dart';
 main() {
   var document = parse(
       '<body>Hello world! <a href="www.html5rocks.com">HTML5 rocks!');
-  print(document.outerHTML);
+  print(document.outerHtml);
 }
 ```
 
