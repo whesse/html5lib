@@ -330,7 +330,7 @@ class TreeBuilder {
         Text last = nodes[index - 1];
         last.value = '${last.value}$data';
       } else {
-        nodes.insertAt(index, new Text(data)..sourceSpan = span);
+        nodes.insert(index, new Text(data)..sourceSpan = span);
       }
     }
   }
