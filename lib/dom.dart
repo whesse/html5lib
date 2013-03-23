@@ -6,10 +6,12 @@ library dom;
 
 import 'dart:collection';
 import 'package:meta/meta.dart';
-import 'package:source_maps/span.dart' show Span;
+import 'package:source_maps/span.dart' show FileSpan;
 
 import 'src/constants.dart';
 import 'src/list_proxy.dart';
+import 'src/token.dart';
+import 'src/tokenizer.dart';
 import 'src/treebuilder.dart';
 import 'src/utils.dart';
 import 'dom_parsing.dart';
@@ -104,10 +106,36 @@ abstract class Node {
   // TODO(jmesserly): consider using an Expando for this, and put it in
   // dom_parsing. Need to check the performance affect.
   /** The source span of this node, if it was created by the [HtmlParser]. */
-  Span sourceSpan;
+  FileSpan sourceSpan;
+
+  /** The attribute spans if requested. Otherwise null. */
+  LinkedHashMap<dynamic, FileSpan> _attributeSpans;
+  LinkedHashMap<dynamic, FileSpan> _attributeValueSpans;
 
   Node(this.tagName) {
     nodes._parent = this;
+  }
+
+  /**
+   * If [sourceSpan] is available, this contains the spans of each attribute.
+   * The span of an attribute is the entire attribute, including the name and
+   * quotes (if any). For example, the span of "attr" in `<a attr="value">`
+   * would be the text `attr="value"`.
+   */
+  LinkedHashMap<dynamic, FileSpan> get attributeSpans {
+    _ensureAttributeSpans();
+    return _attributeSpans;
+  }
+
+  /**
+   * If [sourceSpan] is available, this contains the spans of each attribute's
+   * value. Unlike [attributeSpans], this span will inlcude only the value.
+   * For example, the value span of "attr" in `<a attr="value">` would be the
+   * text `value`.
+   */
+  LinkedHashMap<dynamic, FileSpan> get attributeValueSpans {
+    _ensureAttributeSpans();
+    return _attributeValueSpans;
   }
 
   List<Element> get children {
@@ -299,6 +327,34 @@ abstract class Node {
       if (node is! Element) continue;
       if (node.tagName == tag) results.add(node);
       node._queryAllType(tag, results);
+    }
+  }
+
+  /** Initialize [attributeSpans] using [sourceSpan]. */
+  void _ensureAttributeSpans() {
+    if (_attributeSpans != null) return;
+
+    _attributeSpans = new LinkedHashMap<dynamic, FileSpan>();
+    _attributeValueSpans = new LinkedHashMap<dynamic, FileSpan>();
+
+    if (sourceSpan == null) return;
+
+    var tokenizer = new HtmlTokenizer(sourceSpan.text, generateSpans: true,
+        attributeSpans: true);
+
+    tokenizer.moveNext();
+    var token = tokenizer.current as StartTagToken;
+
+    if (token.attributeSpans == null) return; // no attributes
+
+    for (var attr in token.attributeSpans) {
+      var offset = sourceSpan.start.offset;
+      _attributeSpans[attr.name] = sourceSpan.file.span(
+          offset + attr.start, offset + attr.end);
+      if (attr.startValue != null) {
+        _attributeValueSpans[attr.name] = sourceSpan.file.span(
+            offset + attr.startValue, offset + attr.endValue);
+      }
     }
   }
 }
