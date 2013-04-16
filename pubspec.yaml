@@ -4,9 +4,9 @@ homepage: https://github.com/dart-lang/html5lib
 description: A library for working with HTML documents.
 version: 0.4.3
 dependencies:
-  browser: '>=0.3.2'
-  meta: any
-  unittest: any
   source_maps: ">=0.4.5"
+dev_dependencies:
+  browser: any
+  unittest: any
 environment:
-  sdk: ">=0.4.6"
+  sdk: ">=0.4.7"
