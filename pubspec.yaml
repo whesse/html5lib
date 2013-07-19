@@ -9,4 +9,5 @@ dependencies:
   source_maps: '>=0.6.5'
 dev_dependencies:
   browser: '>=0.6.5'
+  path: '>=0.6.5'
   unittest: '>=0.6.5'
