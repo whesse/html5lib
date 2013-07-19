@@ -1,12 +1,13 @@
 name: html5lib
-author: "Dart Team <misc@dartlang.org>"
-homepage: https://github.com/dart-lang/html5lib
+version: 0.4.4-dev
+author: Dart Team <misc@dartlang.org>
 description: A library for working with HTML documents.
-version: 0.4.3
-dependencies:
-  source_maps: ">=0.4.5"
-dev_dependencies:
-  browser: any
-  unittest: any
+homepage: https://github.com/dart-lang/html5lib
 environment:
-  sdk: ">=0.4.7"
+  sdk: '>=0.6.5'
+dependencies:
+  source_maps: '>=0.6.5'
+dev_dependencies:
+  browser: '>=0.6.5'
+  path: '>=0.6.5'
+  unittest: '>=0.6.5'

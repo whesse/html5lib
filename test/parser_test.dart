@@ -2,6 +2,7 @@ library parser_test;
 
 import 'dart:io';
 import 'dart:json' as json;
+import 'package:path/path.dart' as pathos;
 import 'package:unittest/unittest.dart';
 import 'package:html5lib/dom.dart';
 import 'package:html5lib/parser.dart';
@@ -70,7 +71,7 @@ void main() {
     if (!path.endsWith('.dat')) continue;
 
     var tests = new TestData(path, "data");
-    var testName = new Path(path).filename.replaceAll(".dat", "");
+    var testName = pathos.basenameWithoutExtension(path);
 
     group(testName, () {
       int index = 0;
